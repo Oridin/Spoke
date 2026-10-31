@@ -40,6 +40,7 @@ const manifest = {
 	type: appinfo.type,
 	title: appinfo.title,
 	appDescription: appinfo.appDescription,
+	shortDescription: appinfo.appDescription,
 	iconUri: `https://raw.githubusercontent.com/${repo}/main/public/largeIcon.png`,
 	sourceUrl: `https://github.com/${repo}`,
 	rootRequired: 'optional',
