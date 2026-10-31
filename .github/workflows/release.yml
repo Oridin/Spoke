@@ -46,8 +46,17 @@ jobs:
           git checkout main
           node -e "
             const m = require('/tmp/manifest.json');
-            const repo = JSON.stringify([m], null, 2) + '\n';
-            require('fs').writeFileSync('repository.json', repo);
+            const repo = {
+              paging: { page: 1, count: 1, maxPage: 1, itemsTotal: 1 },
+              packages: [{
+                id: m.id,
+                title: m.title,
+                iconUri: m.iconUri,
+                shortDescription: m.appDescription,
+                manifest: m
+              }]
+            };
+            require('fs').writeFileSync('repository.json', JSON.stringify(repo, null, 2) + '\n');
           "
           git add repository.json
           git diff --cached --quiet || git commit -m "Update repository.json for ${{ github.ref_name }}"
