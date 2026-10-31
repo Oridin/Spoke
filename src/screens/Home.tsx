@@ -63,6 +63,12 @@ interface Props {
 	trending?: TrendingData;
 	/** trending display config */
 	trendingConfig?: TrendingConfig;
+	/** app IDs installed on the TV, for matching streaming providers */
+	installedAppIds: string[];
+	/** launch a TV app by id */
+	onLaunch: (appId: string) => void;
+	/** send a show to the seedbox */
+	onSeedbox: (name: string, year: string, mediaType: string) => void;
 }
 
 /** OLED shift: the offset (px at 1080p) of the clock and the apps, changed once a minute through a small cycle. null = off. */
@@ -81,7 +87,7 @@ function useShift (on: boolean): {x: number; y: number} | null {
 /** The home screen: a clock and the tiles along the bottom, in one row or two.
  *  Left/Right move along a row, Up/Down change row (two rows), OK opens, holding OK opens the app's menu.
  *  Back opens the Recent apps panel. */
-export function Home ({items, timeFormat, appearance, active, paused, onActivate, onLongPress, onBack, wake, focus, weather, trending, trendingConfig}: Props) {
+export function Home ({items, timeFormat, appearance, active, paused, onActivate, onLongPress, onBack, wake, focus, weather, trending, trendingConfig, installedAppIds, onLaunch, onSeedbox}: Props) {
 	const now = useClock(paused);
 	const [position, setPosition] = useState<RowsPosition>(initialPosition);
 	const sizes = splitRows(items.length, appearance.rows);
@@ -171,8 +177,8 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 	return (
 		<div class={`screen${active ? '' : ' screen--away'}${shift ? ' screen--shift' : ''}${shiftVars.cls ? ' ' + shiftVars.cls : ''}`} style={shiftVars.css || undefined}>
 			<Clock now={now} format={timeFormat} config={appearance.clock} weather={weather} />
-			{trending && trendingConfig && trending.shows.length > 0 && <TrendingSidebar title="Trending Shows" shows={trending.shows.slice(0, trendingConfig.maxShows)} side="left" config={trendingConfig} />}
-			{trending && trendingConfig && trending.movies.length > 0 && <TrendingSidebar title="Trending Movies" shows={trending.movies.slice(0, trendingConfig.maxMovies)} side="right" config={trendingConfig} />}
+			{trending && trendingConfig && trending.shows.length > 0 && <TrendingSidebar title="Trending Shows" shows={trending.shows.slice(0, trendingConfig.maxShows)} side="left" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} />}
+			{trending && trendingConfig && trending.movies.length > 0 && <TrendingSidebar title="Trending Movies" shows={trending.movies.slice(0, trendingConfig.maxMovies)} side="right" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} />}
 			<div class={classes} style={rowStyle}>
 				{sizes.map((size, r) => {
 					const start = offsets[r];

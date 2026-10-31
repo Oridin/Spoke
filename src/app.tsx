@@ -20,6 +20,7 @@ import {keepKnownIcons, sameApps} from './lib/appcache';
 import type {TimeFormat} from './lib/clock';
 import {listInputs, MOCK_INPUTS, type InputSource} from './lib/inputs';
 import {launchApp, launchLgHome, launchSystemSettings} from './lib/launch';
+import {sendToSeedbox} from './lib/seedbox';
 import {isWebOS} from './lib/luna';
 import {hidePointerOnForeground} from './lib/pointer';
 import {startLogFile, writeReport, previousRunLines} from './lib/logfile';
@@ -626,6 +627,19 @@ export function App () {
 		});
 	}, [showToast, config.replaceHome, config.takeoverHome]);
 
+	const onTrendingLaunch = useCallback((appId: string) => {
+		launchApp(appId).catch(() => showToast("Couldn't open the app", 'error'));
+	}, [showToast]);
+
+	const onSeedbox = useCallback((name: string, year: string, mediaType: string) => {
+		showToast('Searching seedbox…');
+		sendToSeedbox(name, year, mediaType).then((result) => {
+			if (result.grabbed.length > 0) showToast('Sent to seedbox: ' + result.grabbed.join(', '));
+			else if (result.errors.length > 0) showToast(result.errors[0], 'error');
+			else showToast('Nothing found', 'error');
+		}).catch((e: Error) => showToast('Seedbox error: ' + e.message, 'error'));
+	}, [showToast]);
+
 	const onToggle = useCallback((tabId: string, key: string) => {
 		if (tabId === TAB.apps) {
 			// apps are shown unless hidden: OK adds the app to the hide-list, or takes it off
@@ -818,7 +832,7 @@ export function App () {
 			{wallpaperOn && natureShow && <PhotoShow intervalSec={config.wallpaper.intervalSec} shuffle={config.wallpaper.shuffle} paused={asleep} />}
 			{wallpaperOn && !natureShow && <Wallpaper config={config.wallpaper} opacity={config.wallpaperOpacity} onProblem={(text) => showToast(text, 'error')} />}
 			{/* Home stays mounted under the other screens so it keeps its focus position. */}
-			<Home items={homeItems} timeFormat={timeFormat} appearance={appearance} active={screen === 'home' && !menu && !recents} paused={asleep} onActivate={onActivate} onLongPress={onLongPress} onBack={openRecents} wake={wakes} focus={focus} weather={weatherLine} trending={trOn ? trendingData : undefined} trendingConfig={trOn ? config.trending : undefined} />
+			<Home items={homeItems} timeFormat={timeFormat} appearance={appearance} active={screen === 'home' && !menu && !recents} paused={asleep} onActivate={onActivate} onLongPress={onLongPress} onBack={openRecents} wake={wakes} focus={focus} weather={weatherLine} trending={trOn ? trendingData : undefined} trendingConfig={trOn ? config.trending : undefined} installedAppIds={apps.map((a) => a.id)} onLaunch={onTrendingLaunch} onSeedbox={onSeedbox} />
 			{recents && screen === 'home' && <Recents icons={recentIcons} width={config.recentsW} height={config.recentsH} onClose={closeRecents} onToast={showToast} />}
 			{menu && <AppMenu title={menu.title} moves={menuMoves} hideDetail={menu.app ? 'You can add it back in Settings → Apps' : 'You can add it back in Settings → Sources'} showUninstall={!!menu.app} blockedReason={menuBlocked} onMove={(action) => moveTile(menu.key, action)} onHide={() => hideTile(menu)} onUninstall={() => { if (menu.app) removeApp(menu.app); }} onClose={() => setMenu(null)} />}
 			{/* Settings stays mounted under the picker so it keeps its tab. */}
