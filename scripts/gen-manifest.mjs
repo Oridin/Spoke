@@ -15,6 +15,7 @@ const arg = (name) => {
 };
 
 const repo = arg('repo') || process.env.GITHUB_REPOSITORY;
+const tag = arg('tag') || process.env.GITHUB_REF_NAME;
 if (!repo) {
 	console.error('Missing --repo <owner>/<name> (or GITHUB_REPOSITORY)');
 	process.exit(1);
@@ -42,7 +43,9 @@ const manifest = {
 	iconUri: `https://raw.githubusercontent.com/${repo}/main/public/largeIcon.png`,
 	sourceUrl: `https://github.com/${repo}`,
 	rootRequired: 'optional',
-	ipkUrl: basename(ipkPath),
+	ipkUrl: tag
+		? `https://github.com/${repo}/releases/download/${tag}/${basename(ipkPath)}`
+		: basename(ipkPath),
 	ipkHash: {sha256: createHash('sha256').update(readFileSync(ipkPath)).digest('hex')}
 };
 

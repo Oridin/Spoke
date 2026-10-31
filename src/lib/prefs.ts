@@ -7,19 +7,20 @@ import {LIGHT_THEMES, type ThemeName} from '../theme/tokens';
 import {BACKGROUND_IDS, NATURE_SHOW, backgroundLabel} from './backgrounds';
 import {
 	DEFAULT_CLOCK, DEFAULT_WALLPAPER, DEFAULT_WEATHER, INTERVAL_VALUES, RANGES, rangeValues, stepValue,
-	type ClockFormat, type ClockWeight, type RangeName, type UserConfig
+	type ClockFormat, type ClockWeight, type RangeName, type TrendingDetail, type UserConfig
 } from './storage';
 import {CLOCK_FONT_IDS, fontLabel} from './clockfont';
 import {TILE_SHAPE_IDS, tileShapeText} from './tileshape';
 import {CLOCK_COLOR_IDS, LABEL_COLOR_IDS, colorInfo, labelColorText, type ClockColor} from './clockcolor';
 import {baseName} from './wallpaper';
-import {WEATHER_ENABLED} from '../config/features';
+import {TRENDING_ENABLED, WEATHER_ENABLED} from '../config/features';
 import type {TempUnit} from './weather';
+import {PROVIDERS} from './trending';
 import {lastFailure, rootState, type RootState} from './failure';
 import type {LogoState} from './system';
 import type {TakeoverStatus} from './takeovercmd';
 
-export type PrefTab = 'look' | 'clock' | 'weather' | 'wallpaper' | 'options';
+export type PrefTab = 'look' | 'clock' | 'weather' | 'wallpaper' | 'trending' | 'options';
 
 /** Facts about the TV (not user settings) that some rows display. */
 export interface SystemInfo {
@@ -292,7 +293,45 @@ const BASE_PREFS: Pref[] = [
 		(c) => c.showDebug, (c, v) => ({...c, showDebug: v}))
 ];
 
-export const PREFS: Pref[] = WEATHER_ENABLED ? BASE_PREFS.concat(WEATHER_PREFS) : BASE_PREFS;
+const DETAIL_VALUES: readonly TrendingDetail[] = ['full', 'compact', 'minimal'];
+const DETAIL_TEXT: Record<TrendingDetail, string> = {full: 'Full (name, year, providers, rating)', compact: 'Compact (name, year, providers)', minimal: 'Minimal (name only)'};
+
+const TRENDING_PREFS: Pref[] = [
+	toggle('trendingOn', 'trending', 'Show trending', 'Shows trending TV shows and movies on the home screen. Needs a TMDB API key.',
+		(c) => c.trending.on, (c, v) => ({...c, trending: {...c.trending, on: v && c.trending.apiKey.length > 0}})),
+	{
+		id: 'trendingApiKey', tab: 'trending', label: 'TMDB API key', kind: 'action',
+		description: 'A free key from themoviedb.org (Account → Settings → API). OK enters or changes it.',
+		text: (c) => (c.trending.apiKey ? 'Set (' + c.trending.apiKey.slice(0, 4) + '…)' : 'Not set')
+	},
+	choice('trendingDetail', 'trending', 'Level of detail', 'How much information to show for each item. Full shows name, year, streaming services and rating. Compact shows name, year and services. Minimal shows only the name.',
+		DETAIL_VALUES, (c) => c.trending.detail, (c, v) => ({...c, trending: {...c.trending, detail: v}}), (v) => DETAIL_TEXT[v]),
+	range('trendingFontSize', 'trending', 'Font size', 'The size of the show and movie names. ← → adjust.',
+		'trendFontSize', (c) => c.trending.fontSize, (c, v) => ({...c, trending: {...c.trending, fontSize: v}}), (v) => `${v} px`),
+	range('trendingPosterGap', 'trending', 'Poster spacing', 'The gap between the poster thumbnail and the text. ← → adjust.',
+		'trendPosterGap', (c) => c.trending.posterGap, (c, v) => ({...c, trending: {...c.trending, posterGap: v}}), (v) => `${v} px`),
+	range('trendingMaxShows', 'trending', 'Max shows', 'How many TV shows to display on the left sidebar. ← → adjust.',
+		'trendMaxShows', (c) => c.trending.maxShows, (c, v) => ({...c, trending: {...c.trending, maxShows: v}}), (v) => `${v}`),
+	range('trendingMaxMovies', 'trending', 'Max movies', 'How many movies to display on the right sidebar. ← → adjust.',
+		'trendMaxMovies', (c) => c.trending.maxMovies, (c, v) => ({...c, trending: {...c.trending, maxMovies: v}}), (v) => `${v}`),
+	range('trendingRefresh', 'trending', 'Refresh interval', 'How often to fetch fresh trending data from TMDB. ← → adjust.',
+		'trendRefresh', (c) => c.trending.refreshHours, (c, v) => ({...c, trending: {...c.trending, refreshHours: v}}), (v) => (v === 1 ? '1 hour' : `${v} hours`)),
+	range('trendingTop', 'trending', 'Top position', 'Distance from the top of the screen, in pixels. ← → adjust.',
+		'trendTop', (c) => c.trending.topOffset, (c, v) => ({...c, trending: {...c.trending, topOffset: v}}), (v) => `${v} px`),
+	range('trendingSide', 'trending', 'Side inset', 'Distance from the left/right edge of the screen, in pixels. ← → adjust.',
+		'trendSide', (c) => c.trending.sideInset, (c, v) => ({...c, trending: {...c.trending, sideInset: v}}), (v) => `${v} px`),
+	range('trendingWidth', 'trending', 'Panel width', 'Maximum width of each sidebar as a share of the screen. ← → adjust.',
+		'trendWidth', (c) => c.trending.panelWidth, (c, v) => ({...c, trending: {...c.trending, panelWidth: v}}), (v) => `${v}%`),
+	range('trendingPanelAlpha', 'trending', 'Panel darkness', 'How dark the sidebar background is. ← → adjust.',
+		'trendPanelAlpha', (c) => c.trending.panelOpacity, (c, v) => ({...c, trending: {...c.trending, panelOpacity: v}}), (v) => `${v}%`),
+	...PROVIDERS.map((p) =>
+		toggle('trendingProvider_' + p.tmdbId, 'trending', p.name, 'Show ' + p.name + ' in the trending list.',
+			(c) => c.trending.providers.indexOf(p.tmdbId) !== -1,
+			(c, v) => ({...c, trending: {...c.trending, providers: v ? c.trending.providers.concat(p.tmdbId) : c.trending.providers.filter((id) => id !== p.tmdbId)}}))
+	)
+];
+
+export const PREFS: Pref[] = (WEATHER_ENABLED ? BASE_PREFS.concat(WEATHER_PREFS) : BASE_PREFS).concat(TRENDING_ENABLED ? TRENDING_PREFS : []);
 
 export function findPref (id: string): Pref | undefined {
 	return PREFS.find((p) => p.id === id);

@@ -41,17 +41,21 @@ import {uninstallApp, uninstallVerdict, UNINSTALL_LOG} from './lib/uninstall';
 import {appTile, inputTile, pickInOrder} from './lib/tiles';
 import {moveKey, movesFor, orderTiles, orderUpdate, reslot, type MoveAction} from './lib/tileorder';
 import {APP_ID, TIMING, WALLPAPER} from './config/constants';
-import {PROBE_ENABLED, WEATHER_ENABLED} from './config/features';
+import {PROBE_ENABLED, TRENDING_ENABLED, WEATHER_ENABLED} from './config/features';
 import {PROBE_TESTS, RUN_ALL_ID, bad as probeBad, probeOptions, runAll, withLimit, type ProbeState} from './lib/probe';
 import {fetchWeather} from './lib/weathernet';
 import {FRESH_MS, isFresh, readWeatherCache, usableCached, weatherView, writeWeatherCache, type City, type WeatherData} from './lib/weather';
+import {isTrendingFresh, readTrendingCache, writeTrendingCache, type TrendingData} from './lib/trending';
+import {fetchTrending} from './lib/trendingnet';
 
-type Screen = 'home' | 'settings' | 'picker' | 'cities' | 'source' | 'iconpicker';
+import {TrendingList} from './screens/TrendingList';
+import {ApiKeyEntry} from './screens/ApiKeyEntry';
 
-const TAB = {apps: 'apps', sources: 'sources', look: 'look', clock: 'clock', weather: 'weather', wallpaper: 'wallpaper', options: 'options', debug: 'debug', tests: 'tests'} as const;
-const MISC = {lgHome: 'lg-home', settings: 'settings', system: 'system-settings'} as const;
+type Screen = 'home' | 'settings' | 'picker' | 'cities' | 'source' | 'iconpicker' | 'trending' | 'apikey';
 
-/** The three tiles that always end the row. */
+const TAB = {apps: 'apps', sources: 'sources', look: 'look', clock: 'clock', weather: 'weather', wallpaper: 'wallpaper', trending: 'trending', options: 'options', debug: 'debug', tests: 'tests'} as const;
+const MISC = {lgHome: 'lg-home', settings: 'settings', system: 'system-settings', trending: 'trending'} as const;
+
 const MISC_TILES: TileModel[] = [
 	{key: MISC.lgHome, label: 'LG Home', glyph: 'house'},
 	{key: MISC.system, label: 'System Settings', glyph: 'tv'},
@@ -60,7 +64,7 @@ const MISC_TILES: TileModel[] = [
 
 export function App () {
 	const [screen, setScreen] = useState<Screen>('home');
-	const settingsOpen = screen !== 'home';   // Settings stays open under its sub-screens (editor, pickers)
+	const settingsOpen = screen !== 'home' && screen !== 'trending';   // Settings stays open under its sub-screens (editor, pickers)
 	const [config, setConfig] = useState<UserConfig>(loadConfig);
 	const [apps, setApps] = useState<AppEntry[]>(cachedApps);      // last known list: the row is drawn at once
 	const statsRef = useRef<SystemStats | null>(null);
@@ -87,6 +91,12 @@ export function App () {
 	const [weather, setWeather] = useState<WeatherData | null>(() => (WEATHER_ENABLED ? readWeatherCache() : null));
 	const weatherRef = useRef(weather);
 	weatherRef.current = weather;
+	const [trendingData, setTrendingData] = useState<TrendingData>(() => {
+		if (!TRENDING_ENABLED) return {shows: [], movies: []};
+		const cache = readTrendingCache();
+		return cache ? cache.data : {shows: [], movies: []};
+	});
+	const trendingNote = useRef('off');
 	const [toast, setToast] = useState<ToastMessage | null>(null);
 	const toastTimer = useRef(0);
 	const closedAt = useRef(0);
@@ -435,6 +445,46 @@ export function App () {
 		return () => { cancelled = true; window.clearTimeout(timer); };
 	}, [wxCity !== null, wxLat, wxLon, wakes, showToast]);
 
+	// Trending shows: fetched from TMDB when the feature is on and an API key is set.
+	const tr = config.trending;
+	const trOn = TRENDING_ENABLED && tr.on && tr.apiKey.length > 0;
+	const trendingFreshMs = tr.refreshHours * 60 * 60 * 1000;
+	useEffect(() => {
+		if (!trOn) return undefined;
+		const apiKey = tr.apiKey;
+		const providerIds = tr.providers;
+		const maxShows = tr.maxShows;
+		const maxMovies = tr.maxMovies;
+		const freshMs = trendingFreshMs;
+		const allowShell = isWebOS();
+		let cancelled = false;
+		let timer = 0;
+		const run = () => {
+			if (cancelled || document.hidden) return;
+			fetchTrending(apiKey, providerIds, allowShell, maxShows, maxMovies).then(
+				(data) => {
+					if (cancelled) return;
+					trendingNote.current = 'updated ' + new Date().toTimeString().slice(0, 5);
+					log('Trending updated: ' + data.shows.length + ' shows, ' + data.movies.length + ' movies');
+					writeTrendingCache(data);
+					setTrendingData(data);
+					timer = window.setTimeout(run, freshMs);
+				},
+				() => {
+					if (cancelled) return;
+					trendingNote.current = 'could not be fetched';
+					log('Trending could not be fetched');
+					timer = window.setTimeout(run, 10 * 60 * 1000);
+				}
+			);
+		};
+		const cache = readTrendingCache();
+		const wait = isTrendingFresh(cache, freshMs) ? Math.max(0, freshMs - (Date.now() - cache!.at)) : TIMING.backgroundWorkMs;
+		timer = window.setTimeout(run, wait);
+		return () => { cancelled = true; window.clearTimeout(timer); };
+	}, [trOn, tr.apiKey, tr.providers.join(','), tr.maxShows, tr.maxMovies, trendingFreshMs, wakes]);
+
+
 	const weatherLine = useMemo(() => {
 		if (!wxCity) return null;
 		const data = usableCached(weather, wxCity.lat, wxCity.lon, Date.now());
@@ -471,9 +521,10 @@ export function App () {
 		() => orderTiles(shownApps.map((a) => appTile(a, config.appEdits)).concat(shownInputs.map((i) => inputTile(i, config.sourceEdits))), (t) => t.key, config.tileOrder),
 		[shownApps, shownInputs, config.tileOrder, config.sourceEdits, config.appEdits]
 	);
+	const trendingTile: TileModel[] = trOn ? [{key: MISC.trending, label: 'Trending', glyph: 'trending'}] : [];
 	const homeItems: TileModel[] = useMemo(
-		() => orderedTiles.concat(MISC_TILES.filter((t) => (t.key === MISC.lgHome ? config.showLgHome : t.key === MISC.system ? config.showSystem : true))),
-		[orderedTiles, config.showLgHome, config.showSystem]
+		() => orderedTiles.concat(trendingTile).concat(MISC_TILES.filter((t) => (t.key === MISC.lgHome ? config.showLgHome : t.key === MISC.system ? config.showSystem : true))),
+		[orderedTiles, config.showLgHome, config.showSystem, trOn]
 	);
 
 	const timeFormat: TimeFormat = config.clockFormat === 'tv' ? tvFormat : config.clockFormat;
@@ -487,6 +538,7 @@ export function App () {
 			rootDetail: lastFailureDetail(),
 			appList: li ? {source: li.source, count: li.count, ago: mins < 1 ? 'just now' : mins + ' min ago'} : null,
 			weather: config.weather.on ? weatherNote.current : 'off',
+			trending: config.trending.on ? trendingNote.current : 'off',
 			config,
 			events: logLines(),
 			stats: statsRef.current,
@@ -508,6 +560,7 @@ export function App () {
 		{id: TAB.look, label: 'Look', noun: '', items: [], shown: [], options: optionsFor('look', config)},
 		{id: TAB.clock, label: 'Clock', noun: '', items: [], shown: [], options: optionsFor('clock', config)},
 		...(WEATHER_ENABLED ? [{id: TAB.weather, label: 'Weather', noun: '', items: [], shown: [], options: optionsFor('weather', config)}] : []),
+		...(TRENDING_ENABLED ? [{id: TAB.trending, label: 'Trending', noun: '', items: [], shown: [], options: optionsFor('trending', config)}] : []),
 		{id: TAB.wallpaper, label: 'Wallpaper', noun: '', items: [], shown: [], options: optionsFor('wallpaper', config)},
 		{id: TAB.options, label: 'Options', noun: '', items: [], shown: [], options: optionsFor('options', config, {...systemInfo, tvInput})},
 		...(config.showDebug ? [{id: TAB.debug, label: 'Debug', noun: '', items: [], shown: [], pages: debugPagesNow}] : []),
@@ -528,6 +581,7 @@ export function App () {
 	// ----- actions -----
 	const onActivate = useCallback((item: TileModel) => {
 		if (item.key === MISC.settings) { setScreen('settings'); return; }
+		if (item.key === MISC.trending) { setScreen('trending'); return; }
 		if (item.key === MISC.system) { launchSystemSettings().catch(() => showToast("Couldn't open the TV's settings", 'error')); return; }
 		if (item.key === MISC.lgHome) {
 			const open = () => launchLgHome().catch(() => showToast("Couldn't open LG Home", 'error'));
@@ -590,9 +644,11 @@ export function App () {
 		const blocked = disabledReason(optionId, systemInfo);
 		if (blocked) { showToast(blocked, 'error'); return; }
 		if (optionId === 'weatherOn' && !config.weather.city) { showToast('Choose a city first'); setScreen('cities'); return; }
+		if (optionId === 'trendingOn' && !config.trending.apiKey) { showToast('Enter a TMDB API key first'); setScreen('apikey'); return; }
 		if (optionId === 'wallpaper' && press === 'ok') { setScreen('picker'); return; }       // OK: pick a picture or folder; ← → step the built-in backgrounds
 		if (pref.kind === 'action') {
 			if (optionId === 'weatherCity') setScreen('cities');
+			else if (optionId === 'trendingApiKey') setScreen('apikey');
 			else if (optionId === 'resetLook') { updateConfig(resetLook(config)); showToast('Look and clock reset'); }
 			else if (optionId === 'takeover') {
 				const refresh = () => getTakeoverStatus().then((takeover) => setSystemInfo((previous) => ({...previous, takeover})));
@@ -697,7 +753,7 @@ export function App () {
 
 	// Hold OK on an app or input: its Move / Hide (/ Uninstall) menu. LG Home and Settings have no menu.
 	const onLongPress = useCallback((item: TileModel) => {
-		if (item.key === MISC.lgHome || item.key === MISC.settings || item.key === MISC.system) return;
+		if (item.key === MISC.lgHome || item.key === MISC.settings || item.key === MISC.system || item.key === MISC.trending) return;
 		const app = apps.find((a) => a.id === item.key) || null;
 		setMenu({key: item.key, title: item.label, app});
 	}, [apps]);
@@ -743,7 +799,7 @@ export function App () {
 			{wallpaperOn && natureShow && <PhotoShow intervalSec={config.wallpaper.intervalSec} shuffle={config.wallpaper.shuffle} paused={asleep} />}
 			{wallpaperOn && !natureShow && <Wallpaper config={config.wallpaper} opacity={config.wallpaperOpacity} onProblem={(text) => showToast(text, 'error')} />}
 			{/* Home stays mounted under the other screens so it keeps its focus position. */}
-			<Home items={homeItems} timeFormat={timeFormat} appearance={appearance} active={screen === 'home' && !menu && !recents} paused={asleep} onActivate={onActivate} onLongPress={onLongPress} onBack={openRecents} wake={wakes} focus={focus} weather={weatherLine} />
+			<Home items={homeItems} timeFormat={timeFormat} appearance={appearance} active={screen === 'home' && !menu && !recents} paused={asleep} onActivate={onActivate} onLongPress={onLongPress} onBack={openRecents} wake={wakes} focus={focus} weather={weatherLine} trending={trOn ? trendingData : undefined} trendingConfig={trOn ? config.trending : undefined} />
 			{recents && screen === 'home' && <Recents icons={recentIcons} width={config.recentsW} height={config.recentsH} onClose={closeRecents} onToast={showToast} />}
 			{menu && <AppMenu title={menu.title} moves={menuMoves} hideDetail={menu.app ? 'You can add it back in Settings → Apps' : 'You can add it back in Settings → Sources'} showUninstall={!!menu.app} blockedReason={menuBlocked} onMove={(action) => moveTile(menu.key, action)} onHide={() => hideTile(menu)} onUninstall={() => { if (menu.app) removeApp(menu.app); }} onClose={() => setMenu(null)} />}
 			{/* Settings stays mounted under the picker so it keeps its tab. */}
@@ -775,6 +831,8 @@ export function App () {
 			)}
 			{screen === 'picker' && <Picker onChoose={onChooseWallpaper} onClose={() => setScreen('settings')} />}
 			{WEATHER_ENABLED && screen === 'cities' && <CityPicker allowShell={isWebOS()} onChoose={onChooseCity} onClose={() => setScreen('settings')} />}
+			{TRENDING_ENABLED && screen === 'trending' && <TrendingList shows={trendingData.shows.concat(trendingData.movies)} installedAppIds={apps.map((a) => a.id)} onLaunch={(appId, name) => { launchApp(appId).catch(() => showToast(`Couldn't open the app for ${name}`, 'error')); }} onClose={() => setScreen('home')} />}
+			{TRENDING_ENABLED && screen === 'apikey' && <ApiKeyEntry current={config.trending.apiKey} onSave={(key) => { updateConfig({...config, trending: {...config.trending, apiKey: key, on: true}}); setScreen('settings'); showToast('API key saved. Trending is on'); }} onClose={() => setScreen('settings')} />}
 			<Toast message={toast} />
 		</>
 	);

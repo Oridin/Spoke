@@ -9,6 +9,7 @@ export interface DebugSnapshot {
 	rootDetail: string;
 	appList: {source: string; count: number; ago: string} | null;
 	weather: string;
+	trending?: string;
 	config: UserConfig;
 	events: string[];
 	/** memory and storage, once read (null when not rooted or not read) */
@@ -46,6 +47,7 @@ export function debugPages (s: DebugSnapshot): DebugPage[] {
 		`Web view: ${chrome ? 'Chrome ' + chrome[1] : 'unknown'}   Screen: ${typeof window !== 'undefined' ? window.innerWidth + '×' + window.innerHeight : '?'}`,
 		s.appList ? `App list: ${s.appList.count} apps from the ${s.appList.source === 'homebrew' ? 'live Homebrew list' : s.appList.source === 'tv' ? "TV's remote-control service (experimental)" : 'built-in list'} (${s.appList.ago})` : 'App list: not read yet',
 		`Weather: ${s.weather}`,
+		s.trending ? `Trending: ${s.trending}` : '',
 		'',
 		`Theme ${c.theme}, background ${c.background}, icons ${c.iconScale}%, ${c.rows} row${c.rows === 1 ? '' : 's'}, labels ${yn(c.showLabels)}, minimal ${yn(c.minimal)}`,
 		`Wallpaper ${c.wallpaper.mode}${c.wallpaper.path ? ' ' + c.wallpaper.path : ''}`,

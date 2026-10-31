@@ -1,0 +1,11 @@
+[
+  {
+    "id": "com.oridin.spoke",
+    "title": "Spoke",
+    "appDescription": "A custom home screen with a clock, your apps and inputs, trending shows, and a wallpaper or USB slideshow.",
+    "iconUri": "https://raw.githubusercontent.com/Oridin/Spoke/main/public/largeIcon.png",
+    "sourceUrl": "https://github.com/Oridin/Spoke",
+    "rootRequired": "optional",
+    "manifest": "https://github.com/Oridin/Spoke/releases/latest/download/com.oridin.spoke.manifest.json"
+  }
+]

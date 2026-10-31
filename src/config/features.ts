@@ -2,8 +2,10 @@
 // then removed from the bundle, not just hidden.
 
 declare const __WEATHER__: boolean | undefined;
+declare const __TRENDING__: boolean | undefined;
 
 export const WEATHER_ENABLED: boolean = typeof __WEATHER__ === 'undefined' ? true : __WEATHER__;
+export const TRENDING_ENABLED: boolean = typeof __TRENDING__ === 'undefined' ? true : __TRENDING__;
 
 /** The "Tests" tab (what a TV allows a web app to do) is in every build; Settings shows it with the Debug tab (Options → Show the Debug tab). */
 export const PROBE_ENABLED = true;

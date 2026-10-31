@@ -11,6 +11,7 @@ import {CLOCK_COLOR_IDS, LABEL_COLOR_IDS, type ClockColor} from './clockcolor';
 import {TILE_SHAPE_IDS} from './tileshape';
 import {DEFAULT_CITY} from './cities';
 import {validCoords, type City, type TempUnit} from './weather';
+import {ALL_PROVIDER_IDS} from './trending';
 
 export type WallpaperMode = 'gradient' | 'image' | 'folder';
 export type ClockFormat = 'tv' | '12h' | '24h';
@@ -34,7 +35,16 @@ export const RANGES = {
 	fadeStrength: {min: 0,   max: 100, step: 5,  def: 30},    // % darkness of the bottom fade over the wallpaper (0 = off)
 	fadeHeight:   {min: 20,  max: 100, step: 5,  def: 50},    // % of the screen height the bottom fade covers
 	recentsW:     {min: 30,  max: 100, step: 5,  def: 60},    // % of the screen width of the Recent apps panel
-	recentsH:     {min: 30,  max: 60,  step: 5,  def: 30}     // % of the screen height of the Recent apps panel
+	recentsH:     {min: 30,  max: 60,  step: 5,  def: 30},    // % of the screen height of the Recent apps panel
+	trendFontSize:   {min: 12, max: 32, step: 2, def: 20},    // px, font size for show/movie name
+	trendPosterGap:  {min: 4,  max: 40, step: 4, def: 16},    // px, gap between poster and text
+	trendMaxShows:   {min: 5,  max: 20, step: 1, def: 15},    // number of shows on left sidebar
+	trendMaxMovies:  {min: 5,  max: 20, step: 1, def: 10},    // number of movies on right sidebar
+	trendRefresh:    {min: 1,  max: 24, step: 1, def: 6},     // hours between trending data refresh
+	trendTop:        {min: 20, max: 200, step: 10, def: 40},   // px from top of screen
+	trendSide:       {min: 10, max: 120, step: 10, def: 40},   // px from the edge of screen
+	trendWidth:      {min: 15, max: 40, step: 1, def: 28},     // % max width of sidebar panel
+	trendPanelAlpha: {min: 20, max: 90, step: 5, def: 55}      // % opacity of the panel background
 } as const;
 
 export type RangeName = keyof typeof RANGES;
@@ -86,6 +96,35 @@ export interface WallpaperConfig {
 	intervalSec: number;
 	/** play the slideshow in random order */
 	shuffle: boolean;
+}
+
+export type TrendingDetail = 'full' | 'compact' | 'minimal';
+
+export interface TrendingConfig {
+	on: boolean;
+	apiKey: string;
+	/** TMDB watch-provider IDs the user wants to see (all by default) */
+	providers: number[];
+	/** font size for the show/movie name, px */
+	fontSize: number;
+	/** gap between poster thumbnail and text, px */
+	posterGap: number;
+	/** max shows to display on the left sidebar */
+	maxShows: number;
+	/** max movies to display on the right sidebar */
+	maxMovies: number;
+	/** how often to refresh trending data, hours */
+	refreshHours: number;
+	/** level of detail: full (name + year + providers + rating), compact (name + providers), minimal (name only) */
+	detail: TrendingDetail;
+	/** distance from top of screen, px */
+	topOffset: number;
+	/** distance from the edge of screen, px */
+	sideInset: number;
+	/** sidebar panel max width, % of screen */
+	panelWidth: number;
+	/** opacity of the sidebar panel background, % */
+	panelOpacity: number;
 }
 
 export interface UserConfig {
@@ -153,6 +192,7 @@ export interface UserConfig {
 	clock: ClockConfig;
 	weather: WeatherConfig;
 	wallpaper: WallpaperConfig;
+	trending: TrendingConfig;
 }
 
 export const THEME_IDS: ThemeName[] = ['black', 'grey', 'midnight', 'forest', 'cloud', 'sand', 'mist'];
@@ -170,6 +210,22 @@ export const DEFAULT_WEATHER: WeatherConfig = {
 	unit: 'c',
 	showCity: true,
 	showRange: false
+};
+
+export const DEFAULT_TRENDING: TrendingConfig = {
+	on: false,
+	apiKey: '',
+	providers: ALL_PROVIDER_IDS,
+	fontSize: RANGES.trendFontSize.def,
+	posterGap: RANGES.trendPosterGap.def,
+	maxShows: RANGES.trendMaxShows.def,
+	maxMovies: RANGES.trendMaxMovies.def,
+	refreshHours: RANGES.trendRefresh.def,
+	detail: 'full',
+	topOffset: RANGES.trendTop.def,
+	sideInset: RANGES.trendSide.def,
+	panelWidth: RANGES.trendWidth.def,
+	panelOpacity: RANGES.trendPanelAlpha.def
 };
 
 export const DEFAULT_CLOCK: ClockConfig = {
@@ -222,7 +278,8 @@ export const DEFAULT_CONFIG: UserConfig = {
 	clockFormat: 'tv',
 	clock: DEFAULT_CLOCK,
 	weather: DEFAULT_WEATHER,
-	wallpaper: DEFAULT_WALLPAPER
+	wallpaper: DEFAULT_WALLPAPER,
+	trending: DEFAULT_TRENDING
 };
 
 function stringList (value: unknown): string[] | null {
@@ -241,7 +298,7 @@ export function loadConfig (): UserConfig {
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return {...DEFAULT_CONFIG};
-		const parsed = JSON.parse(raw) as Partial<UserConfig> & {wallpaper?: Partial<WallpaperConfig>; clock?: Partial<ClockConfig>; weather?: Partial<WeatherConfig>};
+		const parsed = JSON.parse(raw) as Partial<UserConfig> & {wallpaper?: Partial<WallpaperConfig>; clock?: Partial<ClockConfig>; weather?: Partial<WeatherConfig>; trending?: Partial<TrendingConfig>};
 		const w: Partial<WallpaperConfig> = parsed.wallpaper || {};
 		const c: Partial<ClockConfig> = parsed.clock || {};
 		const wx: Partial<WeatherConfig> = parsed.weather || DEFAULT_WEATHER;
@@ -310,7 +367,26 @@ export function loadConfig (): UserConfig {
 				path,
 				intervalSec: interval,
 				shuffle: w.shuffle !== false
-			}
+			},
+			trending: (() => {
+				const t: Partial<TrendingConfig> = parsed.trending || {};
+				const apiKey = typeof t.apiKey === 'string' ? t.apiKey.trim().slice(0, 64) : '';
+				const providers = Array.isArray(t.providers) ? t.providers.filter((id): id is number => typeof id === 'number' && ALL_PROVIDER_IDS.indexOf(id) !== -1) : ALL_PROVIDER_IDS;
+				const detail: TrendingDetail = t.detail === 'compact' || t.detail === 'minimal' ? t.detail : 'full';
+				return {
+					on: t.on === true && apiKey.length > 0, apiKey, providers,
+					fontSize: ranged(t.fontSize, 'trendFontSize'),
+					posterGap: ranged(t.posterGap, 'trendPosterGap'),
+					maxShows: ranged(t.maxShows, 'trendMaxShows'),
+					maxMovies: ranged(t.maxMovies, 'trendMaxMovies'),
+					refreshHours: ranged(t.refreshHours, 'trendRefresh'),
+					detail,
+					topOffset: ranged(t.topOffset, 'trendTop'),
+					sideInset: ranged(t.sideInset, 'trendSide'),
+					panelWidth: ranged(t.panelWidth, 'trendWidth'),
+					panelOpacity: ranged(t.panelOpacity, 'trendPanelAlpha')
+				};
+			})()
 		};
 	} catch {
 		return {...DEFAULT_CONFIG};
