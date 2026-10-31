@@ -10,19 +10,19 @@
       "id": "com.oridin.spoke",
       "title": "Spoke",
       "iconUri": "https://raw.githubusercontent.com/Oridin/Spoke/main/public/largeIcon.png",
-      "shortDescription": "A custom home screen with a clock, your apps and inputs, trending shows, and a wallpaper or USB slideshow.",
+      "shortDescription": "Spoke: a custom home screen with a clock, your apps and inputs, and a wallpaper or USB slideshow.",
       "manifest": {
         "id": "com.oridin.spoke",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "type": "web",
         "title": "Spoke",
-        "appDescription": "A custom home screen with a clock, your apps and inputs, trending shows, and a wallpaper or USB slideshow.",
+        "appDescription": "Spoke: a custom home screen with a clock, your apps and inputs, and a wallpaper or USB slideshow.",
         "iconUri": "https://raw.githubusercontent.com/Oridin/Spoke/main/public/largeIcon.png",
         "sourceUrl": "https://github.com/Oridin/Spoke",
         "rootRequired": "optional",
-        "ipkUrl": "https://github.com/Oridin/Spoke/releases/download/v0.1.0/com.oridin.spoke_0.1.0_all.ipk",
+        "ipkUrl": "https://github.com/Oridin/Spoke/releases/download/v0.1.1/com.oridin.spoke_0.1.1_all.ipk",
         "ipkHash": {
-          "sha256": "b430dda6710f0ed91b1cbd5ae605d8104c16b6dd165e09b87aef192ccee0c068"
+          "sha256": "8395d2091faa970c282ca2ddc232ffd101dd4c9d8f158d6dc6afad9701fdd018"
         }
       }
     }
