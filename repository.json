@@ -13,16 +13,16 @@
       "shortDescription": "Spoke: a custom home screen with a clock, your apps and inputs, and a wallpaper or USB slideshow.",
       "manifest": {
         "id": "com.oridin.spoke",
-        "version": "0.1.2",
+        "version": "0.1.3",
         "type": "web",
         "title": "Spoke",
         "appDescription": "Spoke: a custom home screen with a clock, your apps and inputs, and a wallpaper or USB slideshow.",
         "iconUri": "https://raw.githubusercontent.com/Oridin/Spoke/main/public/largeIcon.png",
         "sourceUrl": "https://github.com/Oridin/Spoke",
         "rootRequired": "optional",
-        "ipkUrl": "https://github.com/Oridin/Spoke/releases/download/v0.1.2/com.oridin.spoke_0.1.2_all.ipk",
+        "ipkUrl": "https://github.com/Oridin/Spoke/releases/download/v0.1.3/com.oridin.spoke_0.1.3_all.ipk",
         "ipkHash": {
-          "sha256": "e60c753163b6f7074798ae327219159e8c15f0103061d7d54453b6941df74377"
+          "sha256": "cad102098137c0cc3a3cca72f1368c32462641fbfba14c6cd511aefc9360d303"
         }
       }
     }
