@@ -52,7 +52,7 @@ export const PROVIDERS: ProviderDef[] = [
 
 export const ALL_PROVIDER_IDS: number[] = PROVIDERS.map((p) => p.tmdbId);
 
-export const TRENDING_CACHE_KEY = 'spoke-trending-v2';
+export const TRENDING_CACHE_KEY = 'spoke-trending-v3';
 export const FRESH_MS = 6 * 60 * 60 * 1000;  // default, overridden by config.trending.refreshHours
 
 export function tvTrendingUrl (apiKey: string, page = 1): string {

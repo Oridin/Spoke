@@ -38,7 +38,10 @@ export function TrendingSidebar ({title, shows, side, config}: Props) {
 		setHovered(id);
 	}, []);
 	const onLeave = useCallback(() => {
-		leaveTimer.current = window.setTimeout(() => setHovered(null), 200);
+		leaveTimer.current = window.setTimeout(() => setHovered(null), 300);
+	}, []);
+	const onClick = useCallback((id: number) => {
+		setHovered((prev) => prev === id ? null : id);
 	}, []);
 
 	const hoveredShow = hovered !== null ? shows.find((s) => s.id === hovered) : undefined;
@@ -61,6 +64,7 @@ export function TrendingSidebar ({title, shows, side, config}: Props) {
 							style={{gap: config.posterGap + 'px'}}
 							onMouseEnter={() => onEnter(show.id)}
 							onMouseLeave={onLeave}
+							onClick={() => onClick(show.id)}
 						>
 							{thumb && <img class="trending-sidebar__poster" src={thumb} alt="" />}
 							<div class="trending-sidebar__info">
@@ -83,6 +87,7 @@ export function TrendingSidebar ({title, shows, side, config}: Props) {
 					class={`trending-sidebar__popup trending-sidebar__popup--${side}`}
 					onMouseEnter={() => onEnter(hoveredShow.id)}
 					onMouseLeave={onLeave}
+					onClick={() => setHovered(null)}
 				>
 					{largePoster(hoveredShow.poster) && <img class="trending-sidebar__popup-poster" src={largePoster(hoveredShow.poster)!} alt="" />}
 					<div class="trending-sidebar__popup-body">
