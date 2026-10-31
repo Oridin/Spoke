@@ -38,6 +38,7 @@ export const RANGES = {
 	recentsH:     {min: 30,  max: 60,  step: 5,  def: 30},    // % of the screen height of the Recent apps panel
 	trendFontSize:   {min: 12, max: 32, step: 2, def: 20},    // px, font size for show/movie name
 	trendPosterGap:  {min: 4,  max: 40, step: 4, def: 16},    // px, gap between poster and text
+	trendRowGap:     {min: 4,  max: 40, step: 4, def: 12},    // px, vertical gap between rows
 	trendMaxShows:   {min: 5,  max: 20, step: 1, def: 15},    // number of shows on left sidebar
 	trendMaxMovies:  {min: 5,  max: 20, step: 1, def: 10},    // number of movies on right sidebar
 	trendRefresh:    {min: 1,  max: 24, step: 1, def: 6},     // hours between trending data refresh
@@ -109,6 +110,8 @@ export interface TrendingConfig {
 	fontSize: number;
 	/** gap between poster thumbnail and text, px */
 	posterGap: number;
+	/** vertical gap between rows, px */
+	rowGap: number;
 	/** max shows to display on the left sidebar */
 	maxShows: number;
 	/** max movies to display on the right sidebar */
@@ -218,6 +221,7 @@ export const DEFAULT_TRENDING: TrendingConfig = {
 	providers: ALL_PROVIDER_IDS,
 	fontSize: RANGES.trendFontSize.def,
 	posterGap: RANGES.trendPosterGap.def,
+	rowGap: RANGES.trendRowGap.def,
 	maxShows: RANGES.trendMaxShows.def,
 	maxMovies: RANGES.trendMaxMovies.def,
 	refreshHours: RANGES.trendRefresh.def,
@@ -377,6 +381,7 @@ export function loadConfig (): UserConfig {
 					on: t.on === true && apiKey.length > 0, apiKey, providers,
 					fontSize: ranged(t.fontSize, 'trendFontSize'),
 					posterGap: ranged(t.posterGap, 'trendPosterGap'),
+				rowGap: ranged(t.rowGap, 'trendRowGap'),
 					maxShows: ranged(t.maxShows, 'trendMaxShows'),
 					maxMovies: ranged(t.maxMovies, 'trendMaxMovies'),
 					refreshHours: ranged(t.refreshHours, 'trendRefresh'),
