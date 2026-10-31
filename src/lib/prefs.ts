@@ -290,7 +290,18 @@ const BASE_PREFS: Pref[] = [
 	},
 	toggle('showDebug', 'options', 'Show the Debug tab',
 		'Adds the Debug tab (facts about this TV and the latest events) and the Tests tab (checks of what this TV allows) to Settings, for reporting a problem. OK turns it on or off.',
-		(c) => c.showDebug, (c, v) => ({...c, showDebug: v}))
+		(c) => c.showDebug, (c, v) => ({...c, showDebug: v})),
+	{
+		id: 'settingsSync', tab: 'options', label: 'Sync settings across TVs', kind: 'action' as const,
+		description: 'Sync your settings across all your TVs using a private GitHub Gist. OK to set up.',
+		text: () => {
+			try {
+				const raw = localStorage.getItem('spoke-sync-v1');
+				if (raw) { const s = JSON.parse(raw); if (s.token && s.gistId) return 'Linked'; if (s.token) return 'Token set'; }
+			} catch { /* */ }
+			return 'Not set up';
+		}
+	}
 ];
 
 const DETAIL_VALUES: readonly TrendingDetail[] = ['full', 'compact', 'minimal'];
@@ -340,7 +351,7 @@ export function findPref (id: string): Pref | undefined {
 }
 
 /** The order of the Options tab (anything not listed goes last). */
-const OPTIONS_ORDER = ['tvInput', 'takeover', 'replaceHome', 'lgLogo', 'tvApps', 'showDebug'];
+const OPTIONS_ORDER = ['tvInput', 'takeover', 'replaceHome', 'lgLogo', 'tvApps', 'settingsSync', 'showDebug'];
 
 function orderOf (tab: PrefTab, id: string): number {
 	if (tab !== 'options') return 0;

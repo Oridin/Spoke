@@ -298,11 +298,11 @@ function ranged (value: unknown, name: RangeName): number {
 	return Math.min(r.max, snapped);
 }
 
-export function loadConfig (): UserConfig {
+export function loadConfig (fromObject?: Record<string, unknown>): UserConfig {
 	try {
-		const raw = localStorage.getItem(STORAGE_KEY);
-		if (!raw) return {...DEFAULT_CONFIG};
-		const parsed = JSON.parse(raw) as Partial<UserConfig> & {wallpaper?: Partial<WallpaperConfig>; clock?: Partial<ClockConfig>; weather?: Partial<WeatherConfig>; trending?: Partial<TrendingConfig>};
+		const raw = fromObject ? null : localStorage.getItem(STORAGE_KEY);
+		if (!raw && !fromObject) return {...DEFAULT_CONFIG};
+		const parsed = (fromObject || JSON.parse(raw!)) as Partial<UserConfig> & {wallpaper?: Partial<WallpaperConfig>; clock?: Partial<ClockConfig>; weather?: Partial<WeatherConfig>; trending?: Partial<TrendingConfig>};
 		const w: Partial<WallpaperConfig> = parsed.wallpaper || {};
 		const c: Partial<ClockConfig> = parsed.clock || {};
 		const wx: Partial<WeatherConfig> = parsed.weather || DEFAULT_WEATHER;

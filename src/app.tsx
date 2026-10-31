@@ -47,11 +47,14 @@ import {fetchWeather} from './lib/weathernet';
 import {FRESH_MS, isFresh, readWeatherCache, usableCached, weatherView, writeWeatherCache, type City, type WeatherData} from './lib/weather';
 import {isTrendingFresh, readTrendingCache, writeTrendingCache, type TrendingData} from './lib/trending';
 import {fetchTrending} from './lib/trendingnet';
+import {loadSyncState, pushConfig, pullConfig} from './lib/sync';
 
 import {TrendingList} from './screens/TrendingList';
 import {ApiKeyEntry} from './screens/ApiKeyEntry';
 
-type Screen = 'home' | 'settings' | 'picker' | 'cities' | 'source' | 'iconpicker' | 'trending' | 'apikey';
+import {SyncSetup} from './screens/SyncSetup';
+
+type Screen = 'home' | 'settings' | 'picker' | 'cities' | 'source' | 'iconpicker' | 'trending' | 'apikey' | 'sync';
 
 const TAB = {apps: 'apps', sources: 'sources', look: 'look', clock: 'clock', weather: 'weather', wallpaper: 'wallpaper', trending: 'trending', options: 'options', debug: 'debug', tests: 'tests'} as const;
 const MISC = {lgHome: 'lg-home', settings: 'settings', system: 'system-settings', trending: 'trending'} as const;
@@ -507,7 +510,23 @@ export function App () {
 		return () => document.removeEventListener('visibilitychange', onVisibility);
 	}, [showToast]);
 
-	const updateConfig = (next: UserConfig) => { setConfig(next); saveConfig(next); };
+	const syncRef = useRef(loadSyncState());
+	const updateConfig = (next: UserConfig) => {
+		setConfig(next); saveConfig(next);
+		const s = syncRef.current;
+		if (s.token && s.gistId) pushConfig(next, s).catch(() => undefined);
+	};
+
+	useEffect(() => {
+		const s = syncRef.current;
+		if (!s.token || !s.gistId) return;
+		pullConfig(s).then((remote) => {
+			if (!remote) return;
+			const pulled = loadConfig(remote);
+			setConfig(pulled); saveConfig(pulled);
+			log('Settings synced from cloud');
+		}).catch(() => undefined);
+	}, []);
 
 	// ----- derived lists -----
 	const shownApps = useMemo(
@@ -649,6 +668,7 @@ export function App () {
 		if (pref.kind === 'action') {
 			if (optionId === 'weatherCity') setScreen('cities');
 			else if (optionId === 'trendingApiKey') setScreen('apikey');
+			else if (optionId === 'settingsSync') setScreen('sync');
 			else if (optionId === 'resetLook') { updateConfig(resetLook(config)); showToast('Look and clock reset'); }
 			else if (optionId === 'takeover') {
 				const refresh = () => getTakeoverStatus().then((takeover) => setSystemInfo((previous) => ({...previous, takeover})));
@@ -833,6 +853,7 @@ export function App () {
 			{WEATHER_ENABLED && screen === 'cities' && <CityPicker allowShell={isWebOS()} onChoose={onChooseCity} onClose={() => setScreen('settings')} />}
 			{TRENDING_ENABLED && screen === 'trending' && <TrendingList shows={trendingData.shows.concat(trendingData.movies)} installedAppIds={apps.map((a) => a.id)} onLaunch={(appId, name) => { launchApp(appId).catch(() => showToast(`Couldn't open the app for ${name}`, 'error')); }} onClose={() => setScreen('home')} />}
 			{TRENDING_ENABLED && screen === 'apikey' && <ApiKeyEntry current={config.trending.apiKey} onSave={(key) => { updateConfig({...config, trending: {...config.trending, apiKey: key, on: true}}); setScreen('settings'); showToast('API key saved. Trending is on'); }} onClose={() => setScreen('settings')} />}
+			{screen === 'sync' && <SyncSetup onSync={(s) => { syncRef.current = s; setConfig(loadConfig()); setScreen('settings'); }} onClose={() => setScreen('settings')} onToast={showToast} />}
 			<Toast message={toast} />
 		</>
 	);
