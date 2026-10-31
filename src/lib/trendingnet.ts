@@ -10,7 +10,6 @@ function attachProviders (items: TrendingShow[], apiKey: string, enabledProvider
 	);
 	return Promise.all(promises).then((providerLists) =>
 		items.map((item, i) => ({...item, providers: providerLists[i]}))
-			.filter((item) => item.providers.length > 0)
 	);
 }
 
