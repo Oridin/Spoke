@@ -108,7 +108,7 @@ export function TrendingSidebar ({title, shows, side, config}: Props) {
 						)}
 						{hoveredShow.providers.length === 0 && (
 							<div class="trending-sidebar__popup-providers">
-								<span class="trending-sidebar__popup-providers-label">Not on your services</span>
+								<span class="trending-sidebar__popup-providers-label">Streaming info unavailable</span>
 							</div>
 						)}
 					</div>

@@ -52,7 +52,7 @@ export const PROVIDERS: ProviderDef[] = [
 
 export const ALL_PROVIDER_IDS: number[] = PROVIDERS.map((p) => p.tmdbId);
 
-export const TRENDING_CACHE_KEY = 'spoke-trending-v3';
+export const TRENDING_CACHE_KEY = 'spoke-trending-v4';
 export const FRESH_MS = 6 * 60 * 60 * 1000;  // default, overridden by config.trending.refreshHours
 
 export function tvTrendingUrl (apiKey: string, page = 1): string {
@@ -101,23 +101,20 @@ export function parseTrendingList (json: string, mediaType: MediaType, limit: nu
 	}
 }
 
-export function parseProviders (json: string, enabledIds: number[]): ShowProvider[] {
+export function parseProviders (json: string): ShowProvider[] {
 	try {
 		const data = JSON.parse(json);
 		const us = data && data.results && data.results.US;
 		if (!us) return [];
 		const flatrate = Array.isArray(us.flatrate) ? us.flatrate as Record<string, unknown>[] : [];
-		const rent = Array.isArray(us.rent) ? us.rent as Record<string, unknown>[] : [];
 		const seen = new Set<number>();
 		const all: ShowProvider[] = [];
-		for (const list of [flatrate, rent]) {
-			for (const p of list) {
-				const id = p.provider_id as number;
-				if (typeof id === 'number' && enabledIds.indexOf(id) !== -1 && !seen.has(id)) {
-					seen.add(id);
-					const name = typeof p.provider_name === 'string' ? p.provider_name : '';
-					if (name) all.push({id, name});
-				}
+		for (const p of flatrate) {
+			const id = p.provider_id as number;
+			if (typeof id === 'number' && !seen.has(id)) {
+				seen.add(id);
+				const name = typeof p.provider_name === 'string' ? p.provider_name : '';
+				if (name) all.push({id, name});
 			}
 		}
 		return all;

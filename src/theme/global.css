@@ -781,6 +781,7 @@ html, body {
 	overflow: hidden;
 	border-radius: 12px;
 	padding: 14px 16px;
+	pointer-events: auto;
 }
 
 .trending-sidebar__item {

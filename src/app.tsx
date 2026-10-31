@@ -455,7 +455,6 @@ export function App () {
 	useEffect(() => {
 		if (!trOn) return undefined;
 		const apiKey = tr.apiKey;
-		const providerIds = tr.providers;
 		const maxShows = tr.maxShows;
 		const maxMovies = tr.maxMovies;
 		const freshMs = trendingFreshMs;
@@ -464,7 +463,7 @@ export function App () {
 		let timer = 0;
 		const run = () => {
 			if (cancelled || document.hidden) return;
-			fetchTrending(apiKey, providerIds, allowShell, maxShows, maxMovies).then(
+			fetchTrending(apiKey, allowShell, maxShows, maxMovies).then(
 				(data) => {
 					if (cancelled) return;
 					trendingNote.current = 'updated ' + new Date().toTimeString().slice(0, 5);
@@ -485,7 +484,7 @@ export function App () {
 		const wait = isTrendingFresh(cache, freshMs) ? Math.max(0, freshMs - (Date.now() - cache!.at)) : TIMING.backgroundWorkMs;
 		timer = window.setTimeout(run, wait);
 		return () => { cancelled = true; window.clearTimeout(timer); };
-	}, [trOn, tr.apiKey, tr.providers.join(','), tr.maxShows, tr.maxMovies, trendingFreshMs, wakes]);
+	}, [trOn, tr.apiKey, tr.maxShows, tr.maxMovies, trendingFreshMs, wakes]);
 
 
 	const weatherLine = useMemo(() => {
