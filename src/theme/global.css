@@ -757,7 +757,6 @@ html, body {
 	max-height: calc(100% - 260px);
 	display: flex;
 	flex-direction: column;
-	overflow: hidden;
 	pointer-events: none;
 }
 
