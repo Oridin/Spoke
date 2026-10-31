@@ -21,7 +21,8 @@ export function TrendingSidebar ({title, shows, side, config}: Props) {
 	if (side === 'left') style.left = config.sideInset + 'px';
 	else style.right = config.sideInset + 'px';
 	const listStyle = {
-		background: `rgba(0, 0, 0, ${config.panelOpacity / 100})`
+		background: `rgba(0, 0, 0, ${config.panelOpacity / 100})`,
+		gap: config.posterGap + 'px'
 	};
 	return (
 		<div class={`trending-sidebar trending-sidebar--${side}`} style={style}>
@@ -35,7 +36,7 @@ export function TrendingSidebar ({title, shows, side, config}: Props) {
 						return def ? def.short : sp.name;
 					});
 					return (
-						<div key={show.id} class="trending-sidebar__item" style={{gap: config.posterGap + 'px'}}>
+						<div key={show.id} class="trending-sidebar__item" style={{gap: Math.max(8, Math.round(config.posterGap * 0.75)) + 'px'}}>
 							{thumb && <img class="trending-sidebar__poster" src={thumb} alt="" />}
 							<div class="trending-sidebar__info">
 								<div class="trending-sidebar__name" style={{fontSize: nameFontSize + 'px'}}>{show.name}{detail !== 'minimal' && year ? ` (${year})` : ''}</div>

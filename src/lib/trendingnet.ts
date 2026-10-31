@@ -14,11 +14,19 @@ function attachProviders (items: TrendingShow[], apiKey: string, enabledProvider
 	);
 }
 
+function fetchPages (urlFn: (key: string, page: number) => string, apiKey: string, mediaType: 'tv' | 'movie', limit: number, allowShell: boolean): Promise<TrendingShow[]> {
+	const pages = limit > 10 ? 2 : 1;
+	const perPage = 20;
+	const fetches = Array.from({length: pages}, (_, i) =>
+		fetchText(urlFn(apiKey, i + 1), allowShell).then((json) => parseTrendingList(json, mediaType, perPage))
+	);
+	return Promise.all(fetches).then((lists) => lists.flat());
+}
+
 export function fetchTrending (apiKey: string, enabledProviderIds: number[], allowShell: boolean, maxShows: number, maxMovies: number): Promise<TrendingData> {
-	const fetchBatch = Math.max(maxShows, maxMovies) + 10;
 	return Promise.all([
-		fetchText(tvTrendingUrl(apiKey), allowShell).then((json) => parseTrendingList(json, 'tv', fetchBatch)),
-		fetchText(movieTrendingUrl(apiKey), allowShell).then((json) => parseTrendingList(json, 'movie', fetchBatch))
+		fetchPages(tvTrendingUrl, apiKey, 'tv', maxShows, allowShell),
+		fetchPages(movieTrendingUrl, apiKey, 'movie', maxMovies, allowShell)
 	]).then(([tvRaw, movieRaw]) =>
 		Promise.all([
 			attachProviders(tvRaw, apiKey, enabledProviderIds, allowShell),

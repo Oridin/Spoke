@@ -55,12 +55,12 @@ export const ALL_PROVIDER_IDS: number[] = PROVIDERS.map((p) => p.tmdbId);
 export const TRENDING_CACHE_KEY = 'spoke-trending-v2';
 export const FRESH_MS = 6 * 60 * 60 * 1000;  // default, overridden by config.trending.refreshHours
 
-export function tvTrendingUrl (apiKey: string): string {
-	return 'https://api.themoviedb.org/3/trending/tv/week?api_key=' + encodeURIComponent(apiKey) + '&language=en-US';
+export function tvTrendingUrl (apiKey: string, page = 1): string {
+	return 'https://api.themoviedb.org/3/trending/tv/week?api_key=' + encodeURIComponent(apiKey) + '&language=en-US&page=' + page;
 }
 
-export function movieTrendingUrl (apiKey: string): string {
-	return 'https://api.themoviedb.org/3/trending/movie/week?api_key=' + encodeURIComponent(apiKey) + '&language=en-US';
+export function movieTrendingUrl (apiKey: string, page = 1): string {
+	return 'https://api.themoviedb.org/3/trending/movie/week?api_key=' + encodeURIComponent(apiKey) + '&language=en-US&page=' + page;
 }
 
 export function watchProvidersUrl (id: number, mediaType: MediaType, apiKey: string): string {

@@ -1,6 +1,6 @@
 {
   "id": "com.oridin.spoke",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "vendor": "com.oridin.spoke",
   "type": "web",
   "main": "index.html",

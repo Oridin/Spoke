@@ -778,7 +778,6 @@ html, body {
 .trending-sidebar__list {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
 	overflow: hidden;
 	border-radius: 12px;
 	padding: 14px 16px;
