@@ -34,3 +34,21 @@ jobs:
             --generate-notes \
             build/*.ipk \
             build/*.manifest.json
+
+      - name: Update repository.json on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/com.oridin.spoke.manifest.json /tmp/manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          node -e "
+            const m = require('/tmp/manifest.json');
+            const repo = JSON.stringify([m], null, 2) + '\n';
+            require('fs').writeFileSync('repository.json', repo);
+          "
+          git add repository.json
+          git diff --cached --quiet || git commit -m "Update repository.json for ${{ github.ref_name }}"
+          git push origin main
