@@ -15,7 +15,6 @@ import {CLOCK_COLOR_IDS, LABEL_COLOR_IDS, colorInfo, labelColorText, type ClockC
 import {baseName} from './wallpaper';
 import {TRENDING_ENABLED, WEATHER_ENABLED} from '../config/features';
 import type {TempUnit} from './weather';
-import {PROVIDERS} from './trending';
 import {lastFailure, rootState, type RootState} from './failure';
 import type {LogoState} from './system';
 import type {TakeoverStatus} from './takeovercmd';
@@ -336,12 +335,7 @@ const TRENDING_PREFS: Pref[] = [
 	range('trendingWidth', 'trending', 'Panel width', 'Maximum width of each sidebar as a share of the screen. ← → adjust.',
 		'trendWidth', (c) => c.trending.panelWidth, (c, v) => ({...c, trending: {...c.trending, panelWidth: v}}), (v) => `${v}%`),
 	range('trendingPanelAlpha', 'trending', 'Panel darkness', 'How dark the sidebar background is. ← → adjust.',
-		'trendPanelAlpha', (c) => c.trending.panelOpacity, (c, v) => ({...c, trending: {...c.trending, panelOpacity: v}}), (v) => `${v}%`),
-	...PROVIDERS.map((p) =>
-		toggle('trendingProvider_' + p.tmdbId, 'trending', p.name, 'Show ' + p.name + ' in the trending list.',
-			(c) => c.trending.providers.indexOf(p.tmdbId) !== -1,
-			(c, v) => ({...c, trending: {...c.trending, providers: v ? c.trending.providers.concat(p.tmdbId) : c.trending.providers.filter((id) => id !== p.tmdbId)}}))
-	)
+		'trendPanelAlpha', (c) => c.trending.panelOpacity, (c, v) => ({...c, trending: {...c.trending, panelOpacity: v}}), (v) => `${v}%`)
 ];
 
 export const PREFS: Pref[] = (WEATHER_ENABLED ? BASE_PREFS.concat(WEATHER_PREFS) : BASE_PREFS).concat(TRENDING_ENABLED ? TRENDING_PREFS : []);

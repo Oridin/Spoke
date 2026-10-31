@@ -40,7 +40,11 @@ export function TrendingSidebar ({title, shows, side, config}: Props) {
 	const onLeave = useCallback(() => {
 		leaveTimer.current = window.setTimeout(() => setHovered(null), 300);
 	}, []);
-	const onClick = useCallback((id: number) => {
+	const lastActivate = useRef(0);
+	const onActivate = useCallback((id: number) => {
+		const now = Date.now();
+		if (now - lastActivate.current < 300) return;
+		lastActivate.current = now;
 		setHovered((prev) => prev === id ? null : id);
 	}, []);
 
@@ -62,9 +66,12 @@ export function TrendingSidebar ({title, shows, side, config}: Props) {
 							key={show.id}
 							class={`trending-sidebar__item${hovered === show.id ? ' trending-sidebar__item--hovered' : ''}`}
 							style={{gap: config.posterGap + 'px'}}
+							tabIndex={0}
 							onMouseEnter={() => onEnter(show.id)}
 							onMouseLeave={onLeave}
-							onClick={() => onClick(show.id)}
+							onMouseDown={(e: MouseEvent) => { e.preventDefault(); onActivate(show.id); }}
+							onClick={(e: MouseEvent) => { e.preventDefault(); onActivate(show.id); }}
+							onKeyDown={(e: KeyboardEvent) => { if (e.keyCode === 13 || e.keyCode === 32) { e.preventDefault(); onActivate(show.id); } }}
 						>
 							{thumb && <img class="trending-sidebar__poster" src={thumb} alt="" />}
 							<div class="trending-sidebar__info">
