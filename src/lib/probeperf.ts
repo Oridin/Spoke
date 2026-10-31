@@ -1,4 +1,4 @@
-// Tests 28-31 (Tests tab): how fast and smooth Hearth is on this TV. Nothing is changed; each only measures.
+// Tests 28-31 (Tests tab): how fast and smooth Spoke is on this TV. Nothing is changed; each only measures.
 // 28: start-up marks and memory. 29: frame timer on the idle Tests tab. 30: frame timer plus key-to-picture delay
 // while you move through the Tests list. 31: the same on the Home screen (you close Settings, then move along the row).
 // A frame is the time between two screen refreshes: 17 ms is smooth at 60 fps, over 34 ms is a visible stutter.
@@ -88,7 +88,7 @@ function startup (): Promise<ProbeResult> {
 export const PERF_TESTS: ProbeTest[] = [
 	{
 		id: 'startup', label: '28. Start-up times and memory',
-		description: 'Shows when the script started, the first picture was drawn and the app list arrived (ms since the page began loading), plus memory. Best read right after Hearth was started.',
+		description: 'Shows when the script started, the first picture was drawn and the app list arrived (ms since the page began loading), plus memory. Best read right after Spoke was started.',
 		run: startup
 	},
 	{

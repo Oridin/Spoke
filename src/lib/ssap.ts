@@ -10,7 +10,7 @@ type Json = Record<string, unknown>;
 
 export interface TvLaunchPoint {id: string; title: string; icon?: string; removable?: boolean}
 
-const STORE = 'hearth-ssap';
+const STORE = 'spoke-ssap';
 const PERMISSIONS = ['LAUNCH', 'READ_INSTALLED_APPS', 'READ_RUNNING_APPS'];
 const PAIR_WAIT_MS = 65000;
 
@@ -91,7 +91,7 @@ function register (ws: WebSocket, key: string, ms: number): Promise<{key: string
 let counter = 0;
 
 function request (ws: WebSocket, uri: string, ms = 8000): Promise<Json> {
-	const id = 'hearth_' + (++counter);
+	const id = 'spoke_' + (++counter);
 	return new Promise((resolve, reject) => {
 		const timer = window.setTimeout(() => reject(new Error('the TV did not answer')), ms);
 		ws.onmessage = (ev) => {

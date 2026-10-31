@@ -1,4 +1,4 @@
-// "Replace LG Home with a script and SAM": Hearth is mounted in LG Home's own place, so the TV never opens LG Home.
+// "Replace LG Home with a script and SAM": Spoke is mounted in LG Home's own place, so the TV never opens LG Home.
 // The scripts are written to the TV by the launcher itself. See takeovercmd.ts for the commands and src/takeover for
 // the scripts, and src/takeover/README.md for how to undo it over SSH.
 
@@ -32,7 +32,7 @@ export interface TakeoverOutcome {
 	detail: string;
 }
 
-/** Writes the files and puts Hearth in LG Home's place, one small step at a time. If it can't be done, everything it
+/** Writes the files and puts Spoke in LG Home's place, one small step at a time. If it can't be done, everything it
  *  added is removed again (the script itself puts LG Home back before it reports a refusal), and the outcome says why. */
 export function installTakeover (): Promise<TakeoverOutcome> {
 	if (!isWebOS()) return Promise.resolve({result: 'failed', detail: 'not running on a TV'});
@@ -59,7 +59,7 @@ export interface TakeoverReapplied extends TakeoverOutcome {
 	unreachable?: boolean;
 }
 
-/** Makes sure Hearth is in LG Home's place (after a reboot, or when the launcher opens). If the copy on the TV is from
+/** Makes sure Spoke is in LG Home's place (after a reboot, or when the launcher opens). If the copy on the TV is from
  *  an older version of the launcher, it is rewritten first, so updating the launcher updates it. */
 export function reapplyTakeover (): Promise<TakeoverReapplied> {
 	if (!isWebOS()) return Promise.resolve({result: 'failed', detail: 'not running on a TV', fatal: false});
@@ -68,7 +68,7 @@ export function reapplyTakeover (): Promise<TakeoverReapplied> {
 		unreachable: outcome.result === 'busy',
 		fatal: outcome.result !== 'applied' && outcome.result !== 'busy'
 	});
-	// One call: it starts the watcher on the TV at once (so Home opens Hearth from now on), and reports the installed version.
+	// One call: it starts the watcher on the TV at once (so Home opens Spoke from now on), and reports the installed version.
 	return exec(APPLY_COMMAND, SLOW_MS).then(
 		(output): TakeoverReapplied | Promise<TakeoverReapplied> => {
 			const {version, result} = parseApplyOutput(output);
@@ -80,7 +80,7 @@ export function reapplyTakeover (): Promise<TakeoverReapplied> {
 	);
 }
 
-/** LG's own Home is wanted: the TV is given it back now. Hearth takes the place again once LG Home has been left.
+/** LG's own Home is wanted: the TV is given it back now. Spoke takes the place again once LG Home has been left.
  *  Where only a restart of sam can put LG Home back, nothing is done (`unsupported`): switch the takeover off instead. */
 export function stockTakeover (): Promise<StockResult> {
 	if (!isWebOS()) return Promise.resolve('failed');

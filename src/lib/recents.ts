@@ -1,14 +1,13 @@
 import {SYSTEM_APP} from '../config/constants';
 import {exec, shellQuote} from './apps';
 
-/** Recent apps through the TV's own services (root, via the Homebrew Channel's shell): the idea of the Back-key panel
- *  comes from a community contribution; the code is Hearth's own. */
+/** Recent apps through the TV's own services (root, via the Homebrew Channel's shell). */
 export interface RecentApp {
 	id: string;
 	title: string;
 }
 
-const SELF = 'tld.my.customlauncher';
+const SELF = 'com.oridin.spoke';
 const SKIP = [SELF, SYSTEM_APP.lgHome, 'com.tvweb.home'];
 const ID_RE = /^[A-Za-z0-9._-]+$/;
 
@@ -20,7 +19,7 @@ function lunaJson (uri: string, payload: object = {}): Promise<any> {
 	return exec(lunaCmd(uri, payload), 8000).then((out) => { try { return JSON.parse(out); } catch { return null; } });
 }
 
-/** The apps the TV lists as recent, newest first, without Hearth and LG Home. Rejects with a plain reason. */
+/** The apps the TV lists as recent, newest first, without Spoke and LG Home. Rejects with a plain reason. */
 export function listRecents (): Promise<RecentApp[]> {
 	return lunaJson('luna://com.webos.service.recent/listRecents').then(
 		(r) => {

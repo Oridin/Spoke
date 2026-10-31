@@ -64,11 +64,11 @@ function pictureCount (entries: DirEntry[]): number {
 function buildRows (path: string | null, roots: StorageRoot[], entries: DirEntry[], failed: boolean): PickerRow[] {
 	if (failed) {
 		const rows: PickerRow[] = [{key: 'retry', kind: 'retry', label: 'Try again', detail: 'Read the storage again'}];
-		if (path === null) rows.unshift({key: 'gradient', kind: 'gradient', label: 'Built-in background', detail: 'No picture. Change which one with ← → on the Wallpaper row'}, {key: 'nature', kind: 'nature', label: 'Nature photos slideshow', detail: 'The 11 photos that come with Hearth, one after another. No root or USB needed'});
+		if (path === null) rows.unshift({key: 'gradient', kind: 'gradient', label: 'Built-in background', detail: 'No picture. Change which one with ← → on the Wallpaper row'}, {key: 'nature', kind: 'nature', label: 'Nature photos slideshow', detail: 'The 11 photos that come with Spoke, one after another. No root or USB needed'});
 		return rows;
 	}
 	if (path === null) {
-		const rows: PickerRow[] = [{key: 'gradient', kind: 'gradient', label: 'Built-in background', detail: 'No picture. Change which one with ← → on the Wallpaper row'}, {key: 'nature', kind: 'nature', label: 'Nature photos slideshow', detail: 'The 11 photos that come with Hearth, one after another. No root or USB needed'}];
+		const rows: PickerRow[] = [{key: 'gradient', kind: 'gradient', label: 'Built-in background', detail: 'No picture. Change which one with ← → on the Wallpaper row'}, {key: 'nature', kind: 'nature', label: 'Nature photos slideshow', detail: 'The 11 photos that come with Spoke, one after another. No root or USB needed'}];
 		roots.forEach((r) => rows.push({key: `root:${r.path}`, kind: 'root', label: r.label, detail: r.path, path: r.path}));
 		if (!roots.some((r) => r.path !== INTERNAL_ROOT.path)) {
 			rows.push({key: 'no-usb', kind: 'info', label: 'No USB drive found', detail: 'Plug one in, then open this screen again'});

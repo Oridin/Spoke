@@ -13,7 +13,7 @@ const home = start('/usr/bin/qml-runner --app com.webos.app.home');
 const homeEnd = start('qml-runner com.webos.app.home');
 const connect = start('/usr/bin/qml-runner --app com.webos.app.homeconnect');
 const other = start('com.webos.app.settings');
-const web = start('WebAppMgr --app tld.my.customlauncher');
+const web = start('WebAppMgr --app com.oridin.spoke');
 await new Promise((r) => setTimeout(r, 400));
 const result = execSync(CLOSE_HOME_COMMAND, {shell: '/bin/sh'}).toString();   // runs as `sh -c`, like the TV's exec
 await new Promise((r) => setTimeout(r, 400));
@@ -35,17 +35,17 @@ await new Promise((r) => setTimeout(r, 300));
 eq(run2('com.webos.app.home'), 'skipped', 'LG Home in front: it is left running');
 await new Promise((r) => setTimeout(r, 200));
 eq(alive(homeA), true, 'and its process is still there');
-eq(run2('tld.my.customlauncher'), 'done', 'the launcher in front: LG Home is ended');
+eq(run2('com.oridin.spoke'), 'done', 'the launcher in front: LG Home is ended');
 await new Promise((r) => setTimeout(r, 300));
 eq(alive(homeA), false, 'and its process is gone');
 rm(bin, {recursive: true, force: true});
 
 // ---- the home-app setting commands ----
-eq(homeSettingCommand('tld.my.customlauncher').includes('"home":"tld.my.customlauncher"'), true, 'home-app command carries the app id');
+eq(homeSettingCommand('com.oridin.spoke').includes('"home":"com.oridin.spoke"'), true, 'home-app command carries the app id');
 eq(homeSettingCommand('com.webos.app.home').includes('setSystemSettings'), true, 'home-app command uses setSystemSettings');
 let rejected = 0; for (const bad of ["x'; reboot; '", 'a b', '', 'a"b', '$(id)']) { try { homeSettingCommand(bad); } catch { rejected++; } }
 eq(rejected, 5, 'anything that is not a plain app id is refused (no shell injection)');
-eq(parseHomeApp('{\n "returnValue": true,\n "settings": {"defaultApps": {"home": "tld.my.customlauncher"}}\n}'), 'tld.my.customlauncher', 'reads the home app out of the reply');
+eq(parseHomeApp('{\n "returnValue": true,\n "settings": {"defaultApps": {"home": "com.oridin.spoke"}}\n}'), 'com.oridin.spoke', 'reads the home app out of the reply');
 eq(parseHomeApp('{"returnValue": false}'), null, 'no home app in the reply -> null');
 for (const p of [home, homeEnd, connect, other, web]) { try { process.kill(p.pid); } catch {} }
 process.exit(fail ? 1 : 0);

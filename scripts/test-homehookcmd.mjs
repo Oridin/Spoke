@@ -20,7 +20,7 @@ eq([st('running\nlinked\n'), st('linked\n'), st('running\n'), st('')].join(' '),
 
 const root = mkdtempSync(join(tmpdir(), 'fake-tv-'));
 const fake = (cmd) => cmd.split('/media/developer').join(root + '/media/developer').split('/var/lib/webosbrew').join(root + '/var/lib/webosbrew').split('/tmp/launcher').join(root + '/tmp/launcher');
-const env = () => ({...process.env, DRY_RUN: '1', LOG: root + '/tmp/log', APP_QML: root + '/usr/palm/qml', HOOK: root + '/media/developer/launcher-homehook', LAUNCHER: root + '/media/developer/apps/usr/palm/applications/tld.my.customlauncher', PIDFILE: root + '/tmp/launcher-homehook-watch.pid', ALLOW: root + '/tmp/launcher-allow-stock-home'});
+const env = () => ({...process.env, DRY_RUN: '1', LOG: root + '/tmp/log', APP_QML: root + '/usr/palm/qml', HOOK: root + '/media/developer/launcher-homehook', LAUNCHER: root + '/media/developer/apps/usr/palm/applications/com.oridin.spoke', PIDFILE: root + '/tmp/launcher-homehook-watch.pid', ALLOW: root + '/tmp/launcher-allow-stock-home'});
 const run = (cmd) => execSync(fake(cmd), {shell: '/bin/sh', encoding: 'utf8', env: env()});
 const sh = (cmd) => { try { return run(cmd); } catch (e) { return String(e.stdout || ''); } };
 mkdirSync(root + '/tmp', {recursive: true});
@@ -29,7 +29,7 @@ mkdirSync(root + '/var/lib/webosbrew/init.d', {recursive: true});
 const files = {watchSh: readFileSync(here('../src/homehook/watch.sh'), 'utf8'), applySh: readFileSync(here('../src/homehook/apply.sh'), 'utf8'), stockSh: readFileSync(here('../src/homehook/stock.sh'), 'utf8'), diagnoseSh: readFileSync(here('../src/homehook/diagnose.sh'), 'utf8')};
 const hook = root + '/media/developer/launcher-homehook';
 const link = root + '/var/lib/webosbrew/init.d/48-launcher-homehook';
-const launcherDir = root + '/media/developer/apps/usr/palm/applications/tld.my.customlauncher';
+const launcherDir = root + '/media/developer/apps/usr/palm/applications/com.oridin.spoke';
 
 const runInstall = () => {
   let output = '';

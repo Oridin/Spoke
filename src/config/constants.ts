@@ -1,6 +1,6 @@
 // App-wide constants that are not visual tokens (see theme/tokens.ts for those).
 
-export const APP_ID = 'tld.my.customlauncher';
+export const APP_ID = 'com.oridin.spoke';
 
 /** webOS app IDs the launcher itself needs. */
 export const SYSTEM_APP = {
@@ -41,7 +41,7 @@ export const TIMING = {
 } as const;
 
 /** localStorage key for the user's selections. Bump the suffix on breaking changes. */
-export const STORAGE_KEY = 'customlauncher-config-v1';
+export const STORAGE_KEY = 'spoke-config-v1';
 
 /** Wallpaper / slideshow settings. */
 export const WALLPAPER = {
@@ -55,4 +55,3 @@ export const WALLPAPER = {
 	parallelChunks: 3,
 	intervals: [10, 30, 60, 300, 900, 1800, 3600]   // seconds, the choices in Settings
 } as const;
-

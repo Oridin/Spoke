@@ -1,17 +1,17 @@
 #!/bin/sh
-# Puts Hearth in LG Home's place (experimental). Written to the TV by the launcher; nothing to copy by hand.
+# Puts Spoke in LG Home's place (experimental). Written to the TV by the launcher; nothing to copy by hand.
 #
 # What it does: a small black "shim" app is bind-mounted over LG Home's own folder
 # (/usr/palm/applications/com.webos.app.home), so the TV's app manager (sam) reads it as the app with LG Home's id.
 # Everything that opens LG Home (Home button, Back out of the last app, waking from standby) then opens the shim.
 # LG Home itself is never started, so it can never be seen. The shim is only a black page: a web app with LG Home's id
-# gets no answer to any Luna call (seen on a webOS 7 TV: every call from the page timed out), so it cannot open Hearth
+# gets no answer to any Luna call (seen on a webOS 7 TV: every call from the page timed out), so it cannot open Spoke
 # itself. A small watcher, started here as root, does that: it is told by the TV that "LG Home" (the shim) is in front,
-# and asks for Hearth at once. See cmd_watch.
+# and asks for Spoke at once. See cmd_watch.
 #
-# The watcher is started as early as it can be, before the mount exists: until Hearth holds LG Home's place (a restart
+# The watcher is started as early as it can be, before the mount exists: until Spoke holds LG Home's place (a restart
 # of sam, about 15 s, after the start-up hook has run) it behaves as the helper of the release build does (LG Home can
-# flash for a moment), and from then on it is what opens Hearth from the stand-in.
+# flash for a moment), and from then on it is what opens Spoke from the stand-in.
 # The mount lives only in memory: a reboot puts LG Home back, and the start-at-boot link (47-launcher-takeover)
 # does it all again about 25 s into the start. Nothing on the TV's flash is changed.
 #
@@ -33,14 +33,14 @@
 #             (Prints unsupported where LG Home can only be put back by restarting sam.)
 #   boot      (also: no argument, as run from the startup folder) apply, in the background, after a restart.
 #   status    one word per line: enabled, mounted, web (sam reports the shim), linked, watching, restart-allowed, restart-used.
-#   watch     (internal) the watcher that opens Hearth whenever the shim comes to the front.
-#   verify    (internal) after Hearth was asked for: still the shim in front a moment later? ask again; after three, switch off.
+#   watch     (internal) the watcher that opens Spoke whenever the shim comes to the front.
+#   verify    (internal) after Spoke was asked for: still the shim in front a moment later? ask again; after three, switch off.
 #   diagnose  everything needed to see what is going on.
 
 DIR="${DIR:-/media/developer/launcher-takeover}"
 APP_DIR="${APP_DIR:-/usr/palm/applications/com.webos.app.home}"
 STAGE="${STAGE:-$DIR/stage}"
-LAUNCHER_ID="${LAUNCHER_ID:-tld.my.customlauncher}"
+LAUNCHER_ID="${LAUNCHER_ID:-com.oridin.spoke}"
 LAUNCHER="${LAUNCHER:-/media/developer/apps/usr/palm/applications/$LAUNCHER_ID}"
 LINK="${LINK:-/var/lib/webosbrew/init.d/47-launcher-takeover}"
 FLAG="${FLAG:-$DIR/enabled}"
@@ -66,11 +66,11 @@ WATCH_PID="${WATCH_PID:-/tmp/launcher-takeover-watch.pid}"
 VERIFY_PID="${VERIFY_PID:-/tmp/launcher-takeover-verify.pid}"
 DEBOUNCE_S="${DEBOUNCE_S:-1}"
 FRONT_URI=luna://com.webos.applicationManager/getForegroundAppInfo
-ALIVE="${ALIVE_FILE:-/tmp/launcher-alive}"             # Hearth touches this whenever it is on screen (as under the release helper)
-MARK="${MARK_FILE:-/tmp/launcher-takeover-mark}"       # touched when Hearth is asked for: it must touch ALIVE after that
+ALIVE="${ALIVE_FILE:-/tmp/launcher-alive}"             # Spoke touches this whenever it is on screen (as under the release helper)
+MARK="${MARK_FILE:-/tmp/launcher-takeover-mark}"       # touched when Spoke is asked for: it must touch ALIVE after that
 KEEP_LOG="${KEEP_LOG:-/media/developer/launcher-takeover-last.log}"   # a copy of the log that survives a restart
 LG_HOME=com.webos.app.home
-NUDGE_ID=tld.my.customlauncher.rescan    # not an app: blocking it blocks nothing
+NUDGE_ID=com.oridin.spoke.rescan    # not an app: blocking it blocks nothing
 
 log () { echo "$(date '+%H:%M:%S') takeover: $*" >> "$LOG"; }
 # /tmp is gone after a restart; a copy is kept at the moments that matter, so a bad start can be read afterwards
@@ -210,7 +210,7 @@ restore_app () {
 sam_restart () {
     saved=$(fg_app)
     log "restarting sam (the app in front was: ${saved:-unknown})"
-    # the watcher's subscription dies with sam; a fresh one is started once sam is back and Hearth is in place (take_inner)
+    # the watcher's subscription dies with sam; a fresh one is started once sam is back and Spoke is in place (take_inner)
     stop_watcher
     if command -v "$SYSTEMCTL" >/dev/null 2>&1; then
         "$SYSTEMCTL" reset-failed $(sam_units | tr '\n' ' ') >/dev/null 2>&1
@@ -285,7 +285,7 @@ lg_home_pids () {
     done
 }
 
-# The shim: opens Hearth whenever the TV opens "LG Home".
+# The shim: opens Spoke whenever the TV opens "LG Home".
 stage () {
     mkdir -p "$STAGE" || return 1
     cp "$DIR/shim.html" "$STAGE/index.html" || return 1
@@ -295,7 +295,7 @@ stage () {
 {
   "id": "com.webos.app.home",
   "version": "1.0.0",
-  "vendor": "hearth",
+  "vendor": "spoke",
   "type": "web",
   "main": "index.html",
   "title": "Home",
@@ -346,9 +346,9 @@ put_back () {
     return 1
 }
 
-# Hearth in LG Home's place. Prints one result word.
+# Spoke in LG Home's place. Prints one result word.
 take_inner () {
-    [ -f "$LAUNCHER/appinfo.json" ] || { log "Hearth is not installed: leaving LG Home alone"; echo launcher-missing; return 2; }
+    [ -f "$LAUNCHER/appinfo.json" ] || { log "Spoke is not installed: leaving LG Home alone"; echo launcher-missing; return 2; }
     [ -f "$DIR/shim.html" ] || { log "shim.html is missing"; echo files-missing; return 4; }
     stage || { log "could not write the shim"; echo failed; return 1; }
     if is_mounted && [ "$(sam_type)" = web ]; then start_watcher; echo applied; return 0; fi
@@ -366,7 +366,7 @@ take_inner () {
     if reread web; then
         # sam has the shim; now LG's own process can go (where it was in front, the TV opens Home again as the shim)
         [ -n "$pids" ] && $KILL $pids 2>/dev/null
-        log "Hearth is in LG Home's place (stopped LG Home: ${pids:-it was not running})"
+        log "Spoke is in LG Home's place (stopped LG Home: ${pids:-it was not running})"
         start_watcher
         echo applied
         return 0
@@ -408,7 +408,7 @@ stop_watcher () {
     rm -f "$WATCH_PID"
 }
 
-open_hearth () {
+open_spoke () {
     "$LUNA" -n 1 luna://com.webos.applicationManager/launch "{\"id\":\"$LAUNCHER_ID\",\"params\":{}}" 2>/dev/null
 }
 
@@ -439,16 +439,16 @@ watch_report () {
     # a repeat report while it is still in front: not again at once
     if [ "$home_seen" = 1 ] && [ $((now - last_open)) -lt "$DEBOUNCE_S" ]; then return; fi
     home_seen=1
-    [ -f "$LAUNCHER/appinfo.json" ] || { log "watch: Hearth is not installed: switching the takeover off"; ( sh "$0" off >/dev/null 2>&1 & ); return; }
+    [ -f "$LAUNCHER/appinfo.json" ] || { log "watch: Spoke is not installed: switching the takeover off"; ( sh "$0" off >/dev/null 2>&1 & ); return; }
     touch "$MARK"
-    open_hearth >/dev/null
+    open_spoke >/dev/null
     last_open="$now"
     if is_mounted; then
-        log "watch: the stand-in is in front: asked for Hearth"
+        log "watch: the stand-in is in front: asked for Spoke"
         # (only where the stand-in is in place: before that this is the helper's job, and LG Home in front is no failure)
         if [ -z "$DRY_RUN" ]; then ( nohup sh "$0" verify >/dev/null 2>&1 </dev/null & ); fi
     else
-        log "watch: LG Home is in front (the stand-in is not in place yet): asked for Hearth"
+        log "watch: LG Home is in front (the stand-in is not in place yet): asked for Spoke"
     fi
 }
 
@@ -476,10 +476,10 @@ cmd_watch () {
     rm -f "$WATCH_PID"
 }
 
-# After Hearth was asked for: has it shown itself? It must touch the alive file after the mark, as under the release helper:
+# After Spoke was asked for: has it shown itself? It must touch the alive file after the mark, as under the release helper:
 # the TV can report an app in front when its process has been closed, which is a black screen, so "something other than
-# LG Home is in front" is not proof. If not, ask again; on the third ask Hearth is closed first, so it starts afresh.
-# Hearth can take 20 s to load on a slow TV, so it is given time: six more asks, six seconds apart. Then the takeover
+# LG Home is in front" is not proof. If not, ask again; on the third ask Spoke is closed first, so it starts afresh.
+# Spoke can take 20 s to load on a slow TV, so it is given time: six more asks, six seconds apart. Then the takeover
 # is switched off, so a TV is never left on a black screen for good.
 cmd_verify () {
     if alive "$VERIFY_PID" && [ "$other" != "$$" ]; then exit 0; fi
@@ -488,22 +488,22 @@ cmd_verify () {
     n=0
     while [ "$n" -le 6 ]; do
         $NAP 6
-        if [ -f "$ALIVE" ] && [ "$ALIVE" -nt "$MARK" ]; then rm -f "$VERIFY_PID"; exit 0; fi   # Hearth has shown itself
+        if [ -f "$ALIVE" ] && [ "$ALIVE" -nt "$MARK" ]; then rm -f "$VERIFY_PID"; exit 0; fi   # Spoke has shown itself
         front=$(lsend "$FRONT_URI" '{}')
         if ! is_home_report "$front" && ! is_launcher_report "$front"; then rm -f "$VERIFY_PID"; exit 0; fi   # another app is in front
         [ "$n" -eq 6 ] && break
         n=$((n + 1))
-        if is_home_report "$front"; then where="the stand-in"; else where="Hearth, reported in front"; fi
-        log "verify: Hearth has not shown itself ($where is in front): asking again ($n of 6)"
+        if is_home_report "$front"; then where="the stand-in"; else where="Spoke, reported in front"; fi
+        log "verify: Spoke has not shown itself ($where is in front): asking again ($n of 6)"
         if [ "$n" -eq 3 ]; then
-            log "verify: closing Hearth so it starts afresh"
+            log "verify: closing Spoke so it starts afresh"
             lsend luna://com.webos.applicationManager/closeByAppId "{\"id\":\"$LAUNCHER_ID\"}" >/dev/null
             $NAP 1
         fi
         touch "$MARK"
-        open_hearth >/dev/null
+        open_spoke >/dev/null
     done
-    log "verify: Hearth did not show itself after six more tries: switching the takeover off"
+    log "verify: Spoke did not show itself after six more tries: switching the takeover off"
     keep_log
     rm -f "$VERIFY_PID"
     sh "$0" off >/dev/null 2>&1
@@ -593,7 +593,7 @@ cmd_guard () {
 
 cmd_apply () {
     [ -f "$FLAG" ] || { echo off; return 0; }
-    # at once, whatever else is decided below: from now on Home opens Hearth (with a flash of LG Home until the stand-in is in place)
+    # at once, whatever else is decided below: from now on Home opens Spoke (with a flash of LG Home until the stand-in is in place)
     start_watcher
     if [ -L "$LINK" ] && [ "$(cat "$METHOD" 2>/dev/null)" = restart ] && ! is_mounted; then
         up=$(cut -d. -f1 "$UPTIME_FILE" 2>/dev/null)
@@ -628,7 +628,7 @@ cmd_boot () {
         rm -f "$BOOT_ATTEMPT" "$FLAG" "$LINK" "$METHOD"
         exit 0
     fi
-    log "boot: Hearth takes LG Home's place"
+    log "boot: Spoke takes LG Home's place"
     start_watcher
     # a block cut short in an earlier run would leave LG Home unable to launch
     lsend luna://com.webos.applicationManager/releaseBlockSystemApp "{\"id\":\"$LG_HOME\"}" >/dev/null
@@ -657,9 +657,9 @@ cmd_diagnose () {
     echo "== what sam has for LG Home (type web = the shim)"; lsend luna://com.webos.applicationManager/getAppInfo "{\"id\":\"$LG_HOME\"}"
     echo "== LG Home process(es) (should be none while the shim has the place)"; lg_home_pids
     echo "== app in front"; lsend luna://com.webos.applicationManager/getForegroundAppInfo '{}'
-    echo "== is Hearth installed?"; ls "$LAUNCHER" 2>&1 | head -5
-    echo "== the watcher that opens Hearth (pid file; should be alive while the takeover is on)"; cat "$WATCH_PID" 2>&1; alive "$WATCH_PID" && echo alive || echo "not running"
-    echo "== the guard (runs only after 'LG Home' was chosen in Hearth)"; cat "$GUARD_PID" 2>&1
+    echo "== is Spoke installed?"; ls "$LAUNCHER" 2>&1 | head -5
+    echo "== the watcher that opens Spoke (pid file; should be alive while the takeover is on)"; cat "$WATCH_PID" 2>&1; alive "$WATCH_PID" && echo alive || echo "not running"
+    echo "== the guard (runs only after 'LG Home' was chosen in Spoke)"; cat "$GUARD_PID" 2>&1
     echo "== log"; tail -n 60 "$LOG" 2>&1
     echo "== end"
     } 2>&1 | tee /tmp/launcher-takeover-diagnose.txt

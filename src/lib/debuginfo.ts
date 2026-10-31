@@ -1,4 +1,4 @@
-// The Debug tab: what Hearth knows about this TV and what it has done lately, laid out to fit a screen so a photo
+// The Debug tab: what Spoke knows about this TV and what it has done lately, laid out to fit a screen so a photo
 // of it is enough. Page 1: how to get the log files. Page 2: this TV (state, figures) and the latest events, in small type.
 
 import type {UserConfig} from './storage';
@@ -32,7 +32,7 @@ const RIGHT_WIDTH = 60;    // page 2, right column (events)
 export const DENSE_ROWS = 22;   // event rows in the right column (28 ran off the bottom of the TV's screen)
 export const LOW_RAM_MB = 100;   // below this free RAM the Debug page warns
 const APP_STORAGE = '/mnt/lg/appstore';
-export const REPORT_FILE = '/tmp/hearth-debug.txt';
+export const REPORT_FILE = '/tmp/spoke-debug.txt';
 
 const clip = (s: string, width: number = WIDTH): string => (s.length > width ? s.slice(0, width - 1) + '…' : s);
 const gb = (mb: number): string => (mb < 0 ? '?' : mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : mb + ' MB');
@@ -56,7 +56,7 @@ export function debugPages (s: DebugSnapshot): DebugPage[] {
 	const st = s.stats;
 	state.push('');
 	if (st) {
-		if (st.ramFreeMB >= 0 && st.ramFreeMB < LOW_RAM_MB) state.unshift('FREE RAM TOO LOW: HEARTH MIGHT BEHAVE UNEXPECTEDLY', '');
+		if (st.ramFreeMB >= 0 && st.ramFreeMB < LOW_RAM_MB) state.unshift('FREE RAM TOO LOW: SPOKE MIGHT BEHAVE UNEXPECTEDLY', '');
 		state.push(`Memory: ${gb(st.ramFreeMB)} free of ${gb(st.ramTotalMB)}`);
 		// only the app storage matters (the other mounts are read-only or temporary); other TVs without it show all
 		const appStore = st.disks.filter((d) => d.mount === APP_STORAGE);

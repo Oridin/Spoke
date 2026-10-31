@@ -7,25 +7,25 @@
   },
   "packages": [
     {
-      "id": "tld.my.customlauncher",
-      "title": "Hearth for WebOS",
-      "iconUri": "https://raw.githubusercontent.com/rudra-avatar/Hearth/main/public/largeIcon.png",
+      "id": "com.oridin.spoke",
+      "title": "Spoke for WebOS",
+      "iconUri": "https://raw.githubusercontent.com/oridin/Spoke/main/public/largeIcon.png",
       "shortDescription": "Fast, calm home screen: clock, weather, apps, inputs, wallpaper.",
-      "fullDescriptionUrl": "https://raw.githubusercontent.com/rudra-avatar/Hearth/main/repo/description.html",
+      "fullDescriptionUrl": "https://raw.githubusercontent.com/oridin/Spoke/main/repo/description.html",
       "manifest": {
-        "id": "tld.my.customlauncher",
-        "version": "1.2.0",
+        "id": "com.oridin.spoke",
+        "version": "0.1.0",
         "type": "web",
-        "title": "Hearth for WebOS",
+        "title": "Spoke for WebOS",
         "appDescription": "A fast, calm home screen for LG webOS TVs: clock, weather, your apps and inputs, wallpaper or slideshow.",
-        "iconUri": "https://raw.githubusercontent.com/rudra-avatar/Hearth/main/public/largeIcon.png",
-        "sourceUrl": "https://github.com/rudra-avatar/Hearth",
+        "iconUri": "https://raw.githubusercontent.com/oridin/Spoke/main/public/largeIcon.png",
+        "sourceUrl": "https://github.com/oridin/Spoke",
         "rootRequired": "optional",
-        "ipkUrl": "https://github.com/rudra-avatar/Hearth/releases/download/v1.2.0/tld.my.customlauncher_1.2.0_all.ipk",
+        "ipkUrl": "https://github.com/oridin/Spoke/releases/download/v0.1.0/com.oridin.spoke_0.1.0_all.ipk",
         "ipkHash": {
-          "sha256": "8606abaa4f0311df46ca847a0080d1d19307dc176f23243993b6ec5b52eb5b7c"
+          "sha256": ""
         },
-        "ipkSize": 3634284
+        "ipkSize": 0
       }
     }
   ]

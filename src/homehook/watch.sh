@@ -11,8 +11,8 @@
 # becomes visible (when the setting is on). After opening it, this script waits a few seconds and
 # looks for that file being newer than its own mark.
 
-LAUNCHER_ID="${LAUNCHER_ID:-tld.my.customlauncher}"
-LAUNCHER="${LAUNCHER:-/media/developer/apps/usr/palm/applications/tld.my.customlauncher}"
+LAUNCHER_ID="${LAUNCHER_ID:-com.oridin.spoke}"
+LAUNCHER="${LAUNCHER:-/media/developer/apps/usr/palm/applications/com.oridin.spoke}"
 LUNA="${LUNA_SEND:-luna-send}"
 PIDFILE="${PIDFILE:-/tmp/launcher-homehook-watch.pid}"
 LOG="${LOG:-/tmp/launcher-homehook.log}"

@@ -1,7 +1,7 @@
 # Replace LG Home with a script and SAM
 
-Hearth is mounted in LG Home's own place, so the TV never opens LG Home. The app is a small black page
-(`shim.html`) that the TV believes is LG Home (`com.webos.app.home`); it opens Hearth at once.
+Spoke is mounted in LG Home's own place, so the TV never opens LG Home. The app is a small black page
+(`shim.html`) that the TV believes is LG Home (`com.webos.app.home`); it opens Spoke at once.
 
 Files on the TV (written by the launcher, nothing to copy by hand):
 
@@ -11,7 +11,7 @@ Files on the TV (written by the launcher, nothing to copy by hand):
 | start-at-boot link | `/var/lib/webosbrew/init.d/47-launcher-takeover` |
 | the mount | over `/usr/palm/applications/com.webos.app.home` (memory only) |
 | log | `/tmp/launcher-takeover.log` (a copy that survives a restart: `/media/developer/launcher-takeover-last.log`) |
-| the watcher that opens Hearth (pid) | `/tmp/launcher-takeover-watch.pid` |
+| the watcher that opens Spoke (pid) | `/tmp/launcher-takeover-watch.pid` |
 | permission to restart the app manager | `/media/developer/launcher-takeover/allow-restart` |
 | note that a restart was needed | `/media/developer/launcher-takeover/method` (contains `restart`) |
 | a start-up takeover not yet seen to finish | `/media/developer/launcher-takeover/boot-attempt` |
@@ -28,20 +28,20 @@ the app that was in front is opened again. The screen may blink for a few second
 Choosing the method in Settings is the permission to restart SAM (the launcher writes `allow-restart`). Run by hand
 without that file, `takeover.sh on` refuses with `needs-restart` and changes nothing.
 
-How Home opens Hearth: the stand-in page is plain black and has no script, because a web app that carries LG Home's id gets no
+How Home opens Spoke: the stand-in page is plain black and has no script, because a web app that carries LG Home's id gets no
 answer to Luna calls (every call from its page timed out). A watcher running as root is told by the TV that the stand-in is in
-front and opens Hearth. It is started as early as possible, before the mount exists, where it works like the helper script;
-it is stopped before SAM is restarted and started afresh after. Hearth marks itself alive (`/tmp/launcher-alive`) whenever it is on
-screen, and a checker asks again (closing Hearth first on the third ask) if Hearth was asked for and did not show itself.
+front and opens Spoke. It is started as early as possible, before the mount exists, where it works like the helper script;
+it is stopped before SAM is restarted and started afresh after. Spoke marks itself alive (`/tmp/launcher-alive`) whenever it is on
+screen, and a checker asks again (closing Spoke first on the third ask) if Spoke was asked for and did not show itself.
 
 Safety nets: with no permission and no gentle way, it refuses up front and changes nothing. If a start-up takeover that needed a
 restart never finishes (a black screen, a power-cycle), `boot-attempt` is still there at the next start, and the takeover then
-switches itself off and leaves LG Home alone. After six failed asks for Hearth it switches itself off. The "LG Home" tile does
+switches itself off and leaves LG Home alone. After six failed asks for Spoke it switches itself off. The "LG Home" tile does
 nothing on such a TV (it would need a second restart).
 
 ## If Home or Back gives a black screen
 
-The stand-in is only a black page ("Opening Hearth..." in grey); it cannot open Hearth itself, because a web app that carries
+The stand-in is only a black page ("Opening Spoke..." in grey); it cannot open Spoke itself, because a web app that carries
 LG Home's id gets no answer to Luna calls. A watcher running as root does it. Over SSH:
 
     grep -i 'watch\|verify' /tmp/launcher-takeover.log | tail -n 30
@@ -76,8 +76,8 @@ link and flag are gone, any restart gives LG Home back. Order matters: remove th
 start-at-boot step puts the stand-in back.
 
 **5. No SSH at all:** unplug the TV for 30 seconds. The mount does not survive that, but the start-at-boot link puts
-the stand-in back about 25 s after it starts; if Hearth works, use Settings → Options → Replace LG Home with a script and SAM to
-switch it off. If Hearth does not open either, the stand-in switches itself off after three failed attempts to open it.
+the stand-in back about 25 s after it starts; if Spoke works, use Settings → Options → Replace LG Home with a script and SAM to
+switch it off. If Spoke does not open either, the stand-in switches itself off after three failed attempts to open it.
 
 **Remove every trace** (after step 1 or 3):
 

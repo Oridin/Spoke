@@ -1,8 +1,8 @@
 {
-  "name": "custom-launcher",
-  "version": "1.2.0",
+  "name": "spoke",
+  "version": "0.1.0",
   "private": true,
-  "description": "Custom home screen for LG webOS TVs: clock, apps row, wallpaper and USB slideshow",
+  "description": "Spoke: custom home screen for LG webOS TVs",
   "type": "module",
   "scripts": {
     "dev": "vite",

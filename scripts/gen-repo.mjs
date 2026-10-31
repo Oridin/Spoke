@@ -29,7 +29,7 @@ if (basename(ipk) !== expected) {
 }
 const data = readFileSync(ipk);
 // the name shown in Homebrew Channel listings (the app's own on-TV name stays appinfo.title)
-const LISTING_TITLE = 'Hearth for WebOS';
+const LISTING_TITLE = 'Spoke for WebOS';
 const raw = `https://raw.githubusercontent.com/${repo}/main`;
 
 const manifest = {

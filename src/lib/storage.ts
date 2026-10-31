@@ -107,7 +107,7 @@ export interface UserConfig {
 	showDebug: boolean;
 	/** a watcher opens this launcher whenever LG Home comes to the front (kept running whenever the launcher opens) */
 	replaceHome: boolean;
-	/** "Replace LG Home with a script and SAM": Hearth holds LG Home's own place, so the TV never opens LG Home at all; see src/takeover */
+	/** "Replace LG Home with a script and SAM": Spoke holds LG Home's own place, so the TV never opens LG Home at all; see src/takeover */
 	takeoverHome: boolean;
 	theme: ThemeName;
 	/** a built-in background (see backgrounds.ts); 'theme' is the theme's own */
@@ -137,7 +137,7 @@ export interface UserConfig {
 	showLabels: boolean;
 	/** minimalist look: no borders around icons or on the selected one; the selected icon is simply larger */
 	minimal: boolean;
-	/** the LG Home and System Settings tiles at the end of the row (Hearth's own Settings tile is always there) */
+	/** the LG Home and System Settings tiles at the end of the row (Spoke's own Settings tile is always there) */
 	showLgHome: boolean;
 	showSystem: boolean;
 	/** the names and icons the user gave to sources, by the source's app id */

@@ -1,13 +1,13 @@
 // Probe tests 18-24 (Tests tab only): can a web app on this TV reach LG's remote-control protocol (SSAP) on the TV
 // itself, pair without a computer, and read the full app list? Nothing is changed on the TV. Pairing shows a normal
-// "allow connection" prompt on screen. The saved key is only in this app's web storage (hearth-probe-ssap).
+// "allow connection" prompt on screen. The saved key is only in this app's web storage (spoke-probe-ssap).
 
 import {lunaCall} from './luna';
 import type {ProbeResult, ProbeTest} from './probe';
 
 type Json = Record<string, unknown>;
 
-const KEY_STORE = 'hearth-probe-ssap';
+const KEY_STORE = 'spoke-probe-ssap';
 const PERMISSIONS = ['LAUNCH', 'READ_INSTALLED_APPS', 'READ_INPUT_DEVICE_LIST', 'READ_RUNNING_APPS', 'READ_APP_STATUS'];
 
 const clip = (text: string, n = 230): string => (text.length > n ? text.slice(0, n - 1) + '…' : text);
@@ -79,7 +79,7 @@ function register (ws: WebSocket, key: string, ms: number): Promise<{key: string
 let counter = 0;
 
 function request (ws: WebSocket, uri: string, ms = 8000): Promise<Json> {
-	const id = 'hearth_' + (++counter);
+	const id = 'spoke_' + (++counter);
 	return new Promise((resolve, reject) => {
 		const timer = window.setTimeout(() => reject(new Error('no answer to ' + uri)), ms);
 		ws.onmessage = (ev) => {

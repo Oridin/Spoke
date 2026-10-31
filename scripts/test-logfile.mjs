@@ -12,7 +12,7 @@ await build({stdin: {contents: `export * from './lib/logfile'; export {log} from
   }}]});
 globalThis.window = globalThis;
 const m = await import(out);
-const F = '/tmp/hearth-debug.txt';
+const F = '/tmp/spoke-debug.txt';
 let fail = 0;
 const eq = (a, b, msg) => { const ok = JSON.stringify(a) === JSON.stringify(b); if (!ok) fail++; console.log(ok ? 'ok  ' : 'FAIL', msg, ok ? '' : `(${JSON.stringify(a)} != ${JSON.stringify(b)})`); };
 const old = Array.from({length: 150}, (_, i) => `old line ${i}`).join('\n') + '\n';

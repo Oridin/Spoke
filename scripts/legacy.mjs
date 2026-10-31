@@ -1,5 +1,5 @@
 // Builds dist/assets/app.legacy.js, the bundle for Chromium 38 (webOS 3.x TVs). Runs after `vite build` (npm run build).
-// 1. vite build with HEARTH_LEGACY=1 -> dist-legacy/assets/app.js (ES2015, custom properties emulated, see src/lib/cssvars.ts)
+// 1. vite build with SPOKE_LEGACY=1 -> dist-legacy/assets/app.js (ES2015, custom properties emulated, see src/lib/cssvars.ts)
 // 2. Babel lowers it to ES5 (syntax only; no polyfills are added by Babel)
 // 3. core-js-bundle (every polyfill, applied only where the engine lacks the feature) is put in front of it
 // The page loads this file only when the engine has no CSS custom properties; every other TV loads app.js.
@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const babel = require('@babel/core');
 
 rmSync('dist-legacy', {recursive: true, force: true});
-execSync('npx vite build', {stdio: 'inherit', env: {...process.env, HEARTH_LEGACY: '1'}});
+execSync('npx vite build', {stdio: 'inherit', env: {...process.env, SPOKE_LEGACY: '1'}});
 
 const source = readFileSync('dist-legacy/assets/app.js', 'utf8');
 const lowered = babel.transformSync(source, {

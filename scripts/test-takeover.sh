@@ -36,7 +36,7 @@ case "$*" in
   *getAppInfo*) printf '{\n "returnValue": true,\n "appInfo": {\n  "id": "com.webos.app.home",\n  "type": "%s"\n }\n}\n' "$(cat "$T/samtype")" ;;
   *getConfigs*) [ -f "$T/no_list" ] || printf '{\n "configs": {\n  "profile.blockedAppList": [ "some.blocked.app" ]\n },\n "returnValue": true\n}\n' ;;
   *setConfigs*) echo "setConfigs $*" >> "$T/luna.log"
-                case "$*" in *tld.my.customlauncher.rescan*) [ -f "$T/obey_nudge" ] && { if grep -q " $APP_DIR " "$MOUNTS"; then echo web > "$T/samtype"; else echo native > "$T/samtype"; fi; } ;; esac
+                case "$*" in *com.oridin.spoke.rescan*) [ -f "$T/obey_nudge" ] && { if grep -q " $APP_DIR " "$MOUNTS"; then echo web > "$T/samtype"; else echo native > "$T/samtype"; fi; } ;; esac
                 echo '{"returnValue": true}' ;;
   *blockSystemApp*) echo "block $*" >> "$T/luna.log"
                 [ -f "$T/obey_block" ] && { if grep -q " $APP_DIR " "$MOUNTS"; then echo web > "$T/samtype"; else echo native > "$T/samtype"; fi; echo '{"returnValue": true}'; } || echo '{"returnValue": false, "errorText": "unknown method"}' ;;
@@ -117,7 +117,7 @@ esac
 M
 chmod +x "$T/luna2"; rm -f "$T/seen_once"; touch "$T/obey_nudge"
 T="$T" DIR="$D" APP_DIR="$APP" LAUNCHER="$L" LINK="$T/init.d/47-launcher-takeover" LOG="$T/log" LOCK="$T/lock" GUARD_PID="$T/guard.pid" PROC="$T/proc" MOUNTS="$T/mounts" LUNA_SEND="$T/luna2" MOUNT_CMD="$T/mount" UMOUNT_CMD="$T/umount" KILL_CMD="$T/kill" KILL_LOG="$T/kills" NAP=true WAIT_SAM=3 sh "$D/takeover.sh" guard >/dev/null 2>&1
-check "guard: after LG Home was left, Hearth has the place again" "$(mounted)" "yes"
+check "guard: after LG Home was left, Spoke has the place again" "$(mounted)" "yes"
 check "guard: and sam has the shim" "$(cat "$T/samtype")" "web"
 
 # ---- switching off ----
@@ -163,13 +163,13 @@ check "the probe records what getAppInfo said" "$(grep -c 'getAppInfo said:.*qml
 
 # ---- webOS 7: no gentle way, restarting sam allowed ----
 reset; touch "$T/no_list"; : > "$D/allow-restart"
-printf '%s\n' '{"returnValue": true, "appId": "tld.my.customlauncher"}' > "$T/front"
+printf '%s\n' '{"returnValue": true, "appId": "com.oridin.spoke"}' > "$T/front"
 check "restart allowed: applied" "$(run on | tail -n 1)" "applied"
 check "restart allowed: the shim is mounted" "$(mounted)" "yes"
 check "restart allowed: sam was restarted exactly once" "$(grep -c '^sam restarted' "$T/restarts")" "1"
 check "restart allowed: the AirPlay helper was stopped first" "$(grep -c '^killall -9 LunaExecutable' "$T/restarts")" "1"
 check "restart allowed: sam reports the shim" "$(cat "$T/samtype")" "web"
-check "restart allowed: the app that was in front is opened again" "$(grep -c 'launch .*tld.my.customlauncher' "$T/luna.log")" "1"
+check "restart allowed: the app that was in front is opened again" "$(grep -c 'launch .*com.oridin.spoke' "$T/luna.log")" "1"
 check "restart allowed: LG Home's own process is stopped" "$(kills)" "100"
 check "restart allowed: it is remembered that a restart was needed" "$(cat "$D/method")" "restart"
 check "apply again: no second restart" "$(run apply | tail -n 1; grep -c '^sam restarted' "$T/restarts")" "applied
@@ -197,7 +197,7 @@ cp "$T/systemctl.good" "$T/systemctl"; chmod +x "$T/systemctl"
 reset; touch "$T/no_list"; : > "$D/allow-restart"; : > "$D/enabled"; echo restart > "$D/method"
 printf '%s\n' '{"returnValue": true, "appId": "com.webos.app.hdmi1"}' > "$T/front"
 run boot >/dev/null
-check "boot (restart needed): Hearth takes the place" "$(mounted)" "yes"
+check "boot (restart needed): Spoke takes the place" "$(mounted)" "yes"
 check "boot (restart needed): the start-up mark is set while sam restarts" "$(grep -c 'boot-attempt present: yes' "$T/restarts")" "1"
 check "boot (restart needed): and taken off once it is done" "$([ -e "$D/boot-attempt" ] && echo pending || echo done)" "done"
 check "boot (restart needed): the app in front at the start is opened again" "$(grep -c 'launch .*com.webos.app.hdmi1' "$T/luna.log")" "1"
@@ -207,7 +207,7 @@ run boot >/dev/null
 check "boot after an unfinished start-up: nothing is mounted" "$(mounted)" "no"
 check "boot after an unfinished start-up: sam is not restarted" "$([ -f "$T/restarts" ] && echo restarted || echo no)" "no"
 check "boot after an unfinished start-up: the takeover is switched off" "$([ -e "$D/enabled" ] || [ -e "$T/init.d/47-launcher-takeover" ] || [ -e "$D/boot-attempt" ] || echo off)" "off"
-check "and Hearth is then told it is off" "$(run apply | tail -n 1)" "off"
+check "and Spoke is then told it is off" "$(run apply | tail -n 1)" "off"
 
 # ---- apply early in a start, where the start-up hook will do it ----
 reset; touch "$T/no_list"; : > "$D/enabled"; echo restart > "$D/method"; ln -sf "$D/takeover.sh" "$T/init.d/47-launcher-takeover"; echo 40 > "$T/uptime"
@@ -218,34 +218,34 @@ printf '%s\n' '{"returnValue": true, "appId": "x.y"}' > "$T/front"
 check "apply later: puts it in place" "$(run apply | tail -n 1; mounted)" "applied
 yes"
 
-# ---- the watcher: opens Hearth when the TV reports the stand-in (LG Home's id) in front ----
+# ---- the watcher: opens Spoke when the TV reports the stand-in (LG Home's id) in front ----
 reset; touch "$T/obey_nudge"; run on >/dev/null; : > "$T/luna.log"
 printf '%s\n' '{"returnValue":true,"subscribed":true,"appId":"com.webos.app.home"}' '{"returnValue":true,"subscribed":true,"appId":"com.webos.app.home"}' '{"returnValue":true,"subscribed":true,"appId":"com.webos.app.hdmi1"}' '{"returnValue":true,"subscribed":true,"appId":"com.webos.app.home"}' > "$T/front"
 FAKE_NOW=100 run watch >/dev/null 2>&1
-check "watch: Hearth is asked for when the stand-in comes to the front (a repeat report straight after is ignored)" "$(grep -c 'launch .*tld.my.customlauncher' "$T/luna.log")" "2"
+check "watch: Spoke is asked for when the stand-in comes to the front (a repeat report straight after is ignored)" "$(grep -c 'launch .*com.oridin.spoke' "$T/luna.log")" "2"
 check "watch: it is asked for with params, as the launcher does" "$(grep -c 'launch .*"params":{}' "$T/luna.log" | awk '{print ($1>=1)?"yes":"no"}')" "yes"
 check "watch: and written down" "$(grep -c 'the stand-in is in front' "$T/log")" "2"
-printf '%s\n' '{"returnValue":true,"appId":"tld.my.customlauncher"}' '{"returnValue":true,"appId":"netflix"}' > "$T/front"; : > "$T/luna.log"
+printf '%s\n' '{"returnValue":true,"appId":"com.oridin.spoke"}' '{"returnValue":true,"appId":"netflix"}' > "$T/front"; : > "$T/luna.log"
 FAKE_NOW=100 run watch >/dev/null 2>&1
 check "watch: another app in front: nothing is opened" "$(grep -c launch "$T/luna.log")" "0"
 printf '%s\n' '{"returnValue": true, "appId": "com.webos.app.home"}' > "$T/front"; : > "$T/luna.log"
 FAKE_NOW=100 run watch >/dev/null 2>&1
-check "watch: also where the TV writes a space after the colon" "$(grep -c 'launch .*tld.my.customlauncher' "$T/luna.log")" "1"
-# Hearth uninstalled: nothing to open, the takeover goes off
+check "watch: also where the TV writes a space after the colon" "$(grep -c 'launch .*com.oridin.spoke' "$T/luna.log")" "1"
+# Spoke uninstalled: nothing to open, the takeover goes off
 mv "$L/appinfo.json" "$L/x"; : > "$T/luna.log"
 FAKE_NOW=100 run watch >/dev/null 2>&1; sleep 1
-check "watch: Hearth uninstalled: nothing is asked for" "$(grep -c 'launch .*tld.my.customlauncher' "$T/luna.log")" "0"
-check "watch: Hearth uninstalled: the takeover is switched off, LG Home's folder is back" "$(mounted)" "no"
+check "watch: Spoke uninstalled: nothing is asked for" "$(grep -c 'launch .*com.oridin.spoke' "$T/luna.log")" "0"
+check "watch: Spoke uninstalled: the takeover is switched off, LG Home's folder is back" "$(mounted)" "no"
 mv "$L/x" "$L/appinfo.json"
 
 # ---- before the stand-in is in place: the watcher is the release helper (LG Home may flash), and nothing is judged a failure ----
 reset; : > "$D/enabled"; printf '%s\n' '{"returnValue":true,"appId":"com.webos.app.home"}' > "$T/front"; : > "$T/luna.log"
 FAKE_NOW=100 run watch >/dev/null 2>&1
-check "watch before the mount: Hearth is asked for when LG Home comes to the front" "$(grep -c 'launch .*tld.my.customlauncher' "$T/luna.log")" "1"
+check "watch before the mount: Spoke is asked for when LG Home comes to the front" "$(grep -c 'launch .*com.oridin.spoke' "$T/luna.log")" "1"
 check "watch before the mount: and it says it is the early phase" "$(grep -c 'the stand-in is not in place yet' "$T/log")" "1"
 check "watch before the mount: the takeover is still switched on" "$([ -e "$D/enabled" ] && echo on || echo off)" "on"
 
-# ---- the watcher starts at once: from apply (when Hearth opens) and from boot, before any mount or restart ----
+# ---- the watcher starts at once: from apply (when Spoke opens) and from boot, before any mount or restart ----
 reset; touch "$T/no_list"; : > "$D/enabled"; echo restart > "$D/method"; ln -sf "$D/takeover.sh" "$T/init.d/47-launcher-takeover"; echo 40 > "$T/uptime"
 check "apply in the first two minutes: the watcher is started, the restart is left to the start-up hook" "$(run apply | tail -n 1; grep -c 'starting the watcher' "$T/log"; mounted)" "busy
 1
@@ -254,53 +254,53 @@ reset; : > "$T/log"
 check "apply when switched off: no watcher" "$(run apply | tail -n 1; grep -c 'starting the watcher' "$T/log")" "off
 0"
 reset; touch "$T/obey_nudge"; : > "$D/enabled"; run boot >/dev/null
-check "boot: the watcher is started before the mount" "$(grep -n 'starting the watcher\|Hearth is in LG Home' "$T/log" | head -n 1 | grep -c 'starting the watcher')" "1"
+check "boot: the watcher is started before the mount" "$(grep -n 'starting the watcher\|Spoke is in LG Home' "$T/log" | head -n 1 | grep -c 'starting the watcher')" "1"
 reset; : > "$D/enabled"; : > "$D/boot-attempt"; run boot >/dev/null
 check "boot after an unfinished start-up: no watcher is started" "$(grep -c 'starting the watcher' "$T/log")" "0"
 
-# ---- verify: Hearth did not come up ----
+# ---- verify: Spoke did not come up ----
 reset; touch "$T/obey_nudge"; run on >/dev/null; : > "$T/luna.log"
 printf '%s\n' '{"returnValue":true,"appId":"com.webos.app.home"}' > "$T/front"
 run verify >/dev/null 2>&1
-check "verify: still the stand-in: Hearth is asked for six more times (it can take 20 s to load)" "$(grep -c 'launch .*tld.my.customlauncher' "$T/luna.log")" "6"
-check "verify: on the third ask Hearth is closed first, once" "$(grep -c 'closeByAppId' "$T/luna.log")" "1"
+check "verify: still the stand-in: Spoke is asked for six more times (it can take 20 s to load)" "$(grep -c 'launch .*com.oridin.spoke' "$T/luna.log")" "6"
+check "verify: on the third ask Spoke is closed first, once" "$(grep -c 'closeByAppId' "$T/luna.log")" "1"
 check "verify: then the takeover is switched off" "$(mounted; [ -e "$D/enabled" ] && echo flag || echo noflag)" "no
 noflag"
 check "verify: and sam has LG's own Home again" "$(cat "$T/samtype")" "native"
 reset; touch "$T/obey_nudge"; run on >/dev/null; : > "$T/luna.log"
 cat > "$T/luna3" <<'M'
 #!/bin/sh
-# the stand-in in front the first time it is asked, Hearth afterwards
+# the stand-in in front the first time it is asked, Spoke afterwards
 case "$*" in
-  *getForegroundAppInfo*) if [ -f "$T/fg_once" ]; then echo '{"returnValue":true,"appId":"tld.my.customlauncher"}'; else touch "$T/fg_once"; echo '{"returnValue":true,"appId":"com.webos.app.home"}'; fi ;;
+  *getForegroundAppInfo*) if [ -f "$T/fg_once" ]; then echo '{"returnValue":true,"appId":"com.oridin.spoke"}'; else touch "$T/fg_once"; echo '{"returnValue":true,"appId":"com.webos.app.home"}'; fi ;;
   *applicationManager/launch*) sleep 0.05; touch "$T/alive"; exec "$T/luna" "$@" ;;
   *) exec "$T/luna" "$@" ;;
 esac
 M
 chmod +x "$T/luna3"
 LUNA_OVERRIDE="$T/luna3" run verify >/dev/null 2>&1
-check "verify: one more ask, then Hearth shows itself (alive mark newer than the ask): stays on" "$(grep -c 'launch .*tld.my.customlauncher' "$T/luna.log"; mounted)" "1
+check "verify: one more ask, then Spoke shows itself (alive mark newer than the ask): stays on" "$(grep -c 'launch .*com.oridin.spoke' "$T/luna.log"; mounted)" "1
 yes"
 reset; touch "$T/obey_nudge"; run on >/dev/null; : > "$T/luna.log"
-printf '%s\n' '{"returnValue":true,"appId":"tld.my.customlauncher"}' > "$T/front"
+printf '%s\n' '{"returnValue":true,"appId":"com.oridin.spoke"}' > "$T/front"
 touch -d '2000-01-01' "$T/mark"; touch "$T/alive"
 run verify >/dev/null 2>&1
-check "verify: Hearth in front and shown itself since the ask: no ask, stays on" "$(grep -c launch "$T/luna.log"; mounted)" "0
+check "verify: Spoke in front and shown itself since the ask: no ask, stays on" "$(grep -c launch "$T/luna.log"; mounted)" "0
 yes"
-# the black screen the release helper also guards against: the TV reports Hearth in front, but it never shows itself
+# the black screen the release helper also guards against: the TV reports Spoke in front, but it never shows itself
 reset; touch "$T/obey_nudge"; run on >/dev/null; : > "$T/luna.log"
-printf '%s\n' '{"returnValue":true,"appId":"tld.my.customlauncher"}' > "$T/front"
+printf '%s\n' '{"returnValue":true,"appId":"com.oridin.spoke"}' > "$T/front"
 touch "$T/alive"; touch -d '2030-01-01' "$T/mark"
 run verify >/dev/null 2>&1
-check "verify: Hearth reported in front but not alive: it is asked for again, six times" "$(grep -c 'launch .*tld.my.customlauncher' "$T/luna.log")" "6"
+check "verify: Spoke reported in front but not alive: it is asked for again, six times" "$(grep -c 'launch .*com.oridin.spoke' "$T/luna.log")" "6"
 check "verify: and closed once, so it starts afresh" "$(grep -c closeByAppId "$T/luna.log")" "1"
 check "verify: and then the takeover is switched off, LG Home's folder is back" "$(mounted)" "no"
 check "verify: the log is kept for after a restart" "$([ -s "$T/keep.log" ] && echo kept || echo none)" "kept"
-check "verify: and says Hearth was reported in front" "$(grep -c 'Hearth, reported in front' "$T/log" | awk '{print ($1>=1)?"yes":"no"}')" "yes"
+check "verify: and says Spoke was reported in front" "$(grep -c 'Spoke, reported in front' "$T/log" | awk '{print ($1>=1)?"yes":"no"}')" "yes"
 
 # ---- the watcher and the restart of sam: stopped before, a fresh one started after ----
 reset; touch "$T/no_list"; : > "$D/allow-restart"
-printf '%s\n' '{"returnValue": true, "appId": "tld.my.customlauncher"}' > "$T/front"
+printf '%s\n' '{"returnValue": true, "appId": "com.oridin.spoke"}' > "$T/front"
 sleep 60 & echo $! > "$T/watch.pid"; oldwatch=$!
 run on >/dev/null
 st=$(awk '/^State:/{print $2}' "/proc/$oldwatch/status" 2>/dev/null)
@@ -310,7 +310,7 @@ check "sam restart: a fresh watcher is started after it, not before" "$([ -n "$r
 
 # ---- a start-up that the TV would not take: the watcher is back as the helper ----
 reset; touch "$T/no_list"; : > "$D/allow-restart"; : > "$D/enabled"; echo restart > "$D/method"
-printf '%s\n' '{"returnValue": true, "appId": "tld.my.customlauncher"}' > "$T/front"
+printf '%s\n' '{"returnValue": true, "appId": "com.oridin.spoke"}' > "$T/front"
 cp "$T/systemctl" "$T/systemctl.good"; printf '#!/bin/sh\nexit 0\n' > "$T/systemctl"
 run boot >/dev/null
 check "boot, the TV does not take it: LG Home's folder is back" "$(mounted)" "no"
@@ -332,14 +332,14 @@ T="$T" DIR="$D" APP_DIR="$APP" LAUNCHER="$L" LOG="$T/log" LOCK="$T/lock" GUARD_P
 sleep 1
 # (a killed process nobody has reaped yet is a zombie, state Z, and still answers kill -0)
 state=$(awk '/^State:/{print $2}' "/proc/$wp/status" 2>/dev/null)
-check "watcher: switching off stops it (it must never open Hearth over LG's own Home)" "$([ -z "$state" ] || [ "$state" = Z ] && echo gone || echo alive)" "gone"
+check "watcher: switching off stops it (it must never open Spoke over LG's own Home)" "$([ -z "$state" ] || [ "$state" = Z ] && echo gone || echo alive)" "gone"
 check "watcher: and removes its pid file" "$([ -e "$WP" ] && echo kept || echo gone)" "gone"
 DRY_RUN=1
 
 # ---- other refusals ----
 reset; touch "$T/obey_nudge"; mv "$L/appinfo.json" "$L/x"
-check "Hearth not installed: launcher-missing" "$(run on | tail -n 1)" "launcher-missing"
-check "Hearth not installed: nothing mounted" "$(mounted)" "no"
+check "Spoke not installed: launcher-missing" "$(run on | tail -n 1)" "launcher-missing"
+check "Spoke not installed: nothing mounted" "$(mounted)" "no"
 mv "$L/x" "$L/appinfo.json"
 mv "$D/shim.html" "$D/x"
 check "shim missing: files-missing" "$(run on | tail -n 1)" "files-missing"
@@ -354,11 +354,11 @@ run boot >/dev/null
 check "boot: not switched on: nothing is mounted" "$(mounted)" "no"
 : > "$D/enabled"
 run boot >/dev/null
-check "boot: switched on: Hearth takes the place" "$(mounted)" "yes"
+check "boot: switched on: Spoke takes the place" "$(mounted)" "yes"
 check "boot: a stale block is released first" "$(grep -c '^release' "$T/luna.log" | awk '{print ($1>=1)?"yes":"no"}')" "yes"
 reset; touch "$T/obey_nudge"; : > "$D/enabled"; mv "$L/appinfo.json" "$L/x"
 run boot >/dev/null
-check "boot: Hearth uninstalled: LG Home is left alone" "$(mounted)" "no"
+check "boot: Spoke uninstalled: LG Home is left alone" "$(mounted)" "no"
 mv "$L/x" "$L/appinfo.json"
 
 # ---- apply ----

@@ -25,7 +25,7 @@ export type PrefTab = 'look' | 'clock' | 'weather' | 'wallpaper' | 'options';
 export interface SystemInfo {
 	/** the hand-over watcher: running, and whether it starts at boot (null while unknown) */
 	homeHook: {running: boolean; linked: boolean} | null;
-	/** Hearth in LG Home's own place ("Replace LG Home with a script and SAM"): what is in place (null while unknown) */
+	/** Spoke in LG Home's own place ("Replace LG Home with a script and SAM"): what is in place (null while unknown) */
 	takeover?: TakeoverStatus | null;
 	/** the launcher is in the TV's input list (null while unknown) */
 	tvInput?: boolean | null;
@@ -58,7 +58,7 @@ export function disabledReason (id: string, info?: SystemInfo, config?: UserConf
 	if (id === 'replaceHome' && takeoverIsOn(info, config)) return 'Not used while "Replace LG Home with a script and SAM" is on, which already keeps LG Home from showing. Switch that off to use the helper instead.';
 	if (!info || info.root !== 'no' || ROOT_OPTIONS.indexOf(id) === -1) return null;
 	const kind = lastFailure();
-	const why = kind === 'denied' ? 'the TV refused the command. If this TV is rooted, updating the Homebrew Channel may help. On webOS 11, run once over SSH: sh /media/developer/apps/usr/palm/applications/tld.my.customlauncher/tools/webos11-permission.sh (see "webOS 11" in the README).' : 'the Homebrew Channel service is not running. If this TV is rooted, open the Homebrew Channel once, then reopen Settings.';
+	const why = kind === 'denied' ? 'the TV refused the command. If this TV is rooted, updating the Homebrew Channel may help. On webOS 11, run once over SSH: sh /media/developer/apps/usr/palm/applications/com.oridin.spoke/tools/webos11-permission.sh (see "webOS 11" in the README).' : 'the Homebrew Channel service is not running. If this TV is rooted, open the Homebrew Channel once, then reopen Settings.';
 	return 'Needs a rooted TV: ' + why + (info.rootDetail ? ` (TV said: ${info.rootDetail})` : '');
 }
 
@@ -183,9 +183,9 @@ const BASE_PREFS: Pref[] = [
 		(c) => c.showLabels, (c, v) => ({...c, showLabels: v})),
 	choice('labelColor', 'look', 'Name colour', 'The colour of the app names under the icons. "The theme\'s own" follows the theme.',
 		LABEL_COLOR_IDS, (c) => c.labelColor, (c, v) => ({...c, labelColor: v}), labelColorText),
-	toggle('showLgHome', 'look', 'Show the LG Home tile', 'The LG Home tile at the end of the row. If Hearth is your home screen (the helper), this tile is the way back to LG\'s own Home.',
+	toggle('showLgHome', 'look', 'Show the LG Home tile', 'The LG Home tile at the end of the row. If Spoke is your home screen (the helper), this tile is the way back to LG\'s own Home.',
 		(c) => c.showLgHome, (c, v) => ({...c, showLgHome: v})),
-	toggle('showSystem', 'look', 'Show the System Settings tile', 'The tile that opens the TV\'s own settings. The Hearth Settings tile always stays, so you can always get back here.',
+	toggle('showSystem', 'look', 'Show the System Settings tile', 'The tile that opens the TV\'s own settings. The Spoke Settings tile always stays, so you can always get back here.',
 		(c) => c.showSystem, (c, v) => ({...c, showSystem: v})),
 	range('sideMargin', 'look', 'Side margin', 'Space left and right of the app row. ← → adjust.',
 		'sideMargin', (c) => c.sideMargin, (c, v) => ({...c, sideMargin: v}), (v) => `${v} px`),
@@ -227,7 +227,7 @@ const BASE_PREFS: Pref[] = [
 	{
 		// ← → step the built-in backgrounds (and switch back to one from a picture or slideshow); OK opens the picture picker
 		id: 'wallpaper', tab: 'wallpaper', label: 'Wallpaper', kind: 'choice',
-		description: '← → choose a built-in background (plain colours, gradients, a few nature photos). OK chooses your own picture, a folder of pictures for a slideshow, or a slideshow of the nature photos that come with Hearth. The picker has size advice and how to copy files.',
+		description: '← → choose a built-in background (plain colours, gradients, a few nature photos). OK chooses your own picture, a folder of pictures for a slideshow, or a slideshow of the nature photos that come with Spoke. The picker has size advice and how to copy files.',
 		text: (c) => c.wallpaper.mode === 'image' ? `Picture: ${baseName(c.wallpaper.path)}`
 			: c.wallpaper.mode === 'folder' ? `Slideshow: ${baseName(c.wallpaper.path)}` : `Built-in: ${backgroundLabel(c.background)}`,
 		change: (c, press) => {

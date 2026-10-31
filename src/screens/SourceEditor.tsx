@@ -38,7 +38,7 @@ export function SourceEditor ({base, kind = 'source', edit, onChange, onBrowse, 
 	};
 	// suggestions are source names (PlayStation, Xbox...): only offered for sources; apps are typed
 	const stepName = (dir: number) => { if (kind === 'source') onChange({label: step(SUGGESTED_NAMES, name, dir)}); };
-	// apps choose among the app icons shipped with Hearth ('' = the app's own); sources among the drawn icons
+	// apps choose among the app icons shipped with Spoke ('' = the app's own); sources among the drawn icons
 	const iconList: readonly string[] = kind === 'app' ? [''].concat(APP_ICON_IDS) : SOURCE_ICON_IDS;
 	const stepIcon = (dir: number) => onChange({icon: step(iconList, icon, dir), iconData: ''});
 

@@ -22,7 +22,7 @@ const STORE = '/media/cryptofs/apps/usr/palm/applications/netflix/icon.png';
 const SYS = '/usr/palm/applications/some.system.app/icon.png';
 
 // ---- what may be offered for removal ----
-eq(v({id: 'tld.my.customlauncher', iconPath: DEV, removable: true}), false, 'the launcher itself is never offered');
+eq(v({id: 'com.oridin.spoke', iconPath: DEV, removable: true}), false, 'the launcher itself is never offered');
 eq(v({id: 'com.webos.app.home', removable: true}), false, 'LG Home is never offered');
 eq(v({id: 'org.webosbrew.hbchannel', iconPath: DEV, removable: true}), false, 'the Homebrew Channel is never offered (the launcher needs it)');
 eq(v({id: 'com.webos.app.settings', removable: true}), false, 'system apps are never offered, even if the TV says removable');
@@ -34,7 +34,7 @@ eq(v({id: 'x.y', removable: true}), true, 'the TV saying removable is enough');
 eq(v({id: 'x.y', iconPath: DEV, removable: false}), false, 'the TV saying not removable wins over the folder');
 eq(v({id: 'x.y'}), false, 'no evidence that the user installed it: not offered');
 eq(v({id: 'bad id;rm -rf /', removable: true}), false, 'an ID that is not plain text is never offered');
-eq(u.uninstallVerdict({id: 'tld.my.customlauncher'}).reason.length > 0, true, 'a refusal always says why');
+eq(u.uninstallVerdict({id: 'com.oridin.spoke'}).reason.length > 0, true, 'a refusal always says why');
 
 // ---- the command is only built from a plain ID ----
 let refused = 0;

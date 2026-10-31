@@ -1,4 +1,4 @@
-// Hearth's own short event log, kept in memory and shown in Settings → Debug. On a rooted TV `logfile.ts` also
+// Spoke's own short event log, kept in memory and shown in Settings → Debug. On a rooted TV `logfile.ts` also
 // appends it to the one report file, so it survives a restart. It holds the last few dozen events: what was asked of the TV and what the TV answered.
 
 const MAX_LINES = 40;

@@ -48,7 +48,7 @@ back to a plain text tile without its icon, so removal doesn't break anything.
 `public/wallpapers/nature-NN.jpg` are public-domain photos supplied by the maintainer, resized to 1920x1080.
 
 ## Feather icons (MIT)
-The cog on the Hearth Settings tile is the "settings" icon from Feather (https://feathericons.com), (c) Cole Bemis, MIT licence.
+The cog on the Spoke Settings tile is the "settings" icon from Feather (https://feathericons.com), (c) Cole Bemis, MIT licence.
 
 ## Technique and code derived from other projects
 

@@ -40,7 +40,7 @@ launches () { if [ -f "$T/launches" ]; then wc -l < "$T/launches" | tr -d ' '; e
 fresh () { rm -f "$T/launches"; }
 HOME_REPORT='{"returnValue":true,"appId":"com.webos.app.home","processId":"","windowId":""}'
 APP_REPORT='{"returnValue":true,"appId":"youtube.leanback.v4","processId":"123","windowId":"4"}'
-LAUNCHER_REPORT='{"returnValue":true,"appId":"tld.my.customlauncher","processId":"","windowId":""}'
+LAUNCHER_REPORT='{"returnValue":true,"appId":"com.oridin.spoke","processId":"","windowId":""}'
 SUB_HOME='{"returnValue":true,"subscribed":true,"appId":"com.webos.app.home","processId":"","windowId":""}'
 
 fresh; printf '%s\n' "TIME 1000" "$APP_REPORT" | watch
@@ -49,7 +49,7 @@ fresh; printf '%s\n' "TIME 1000" '{"returnValue":true,"subscribed":true}' | watc
 check "a report without an app is ignored" "$(launches)" "0"
 fresh; printf '%s\n' "TIME 1000" "$HOME_REPORT" | watch
 check "LG Home in front: the launcher is opened" "$(launches)" "1"
-check "and it is the launcher that is opened" "$(grep -c 'tld.my.customlauncher' "$T/launches")" "1"
+check "and it is the launcher that is opened" "$(grep -c 'com.oridin.spoke' "$T/launches")" "1"
 check "and the log says so, after the launch" "$(grep -c 'opened the launcher' "$T/log")" "1"
 fresh; printf '%s\n' "TIME 1000" "$HOME_REPORT" "$HOME_REPORT" "$HOME_REPORT" | watch
 check "LG Home reported again at once: not opened again" "$(launches)" "1"
@@ -135,7 +135,7 @@ check "and leaves the first one's pid file alone" "$(cat "$T/pid")" "$$"
 # ---- watch.sh on webOS 3: the home bar in the system log ----
 bar () { NO_VERIFY=1 WATCH_BAR_STDIN=1 LUNA_SEND="$T/luna.sh" LAUNCH_LOG="$T/launches" ALLOW="$T/allow" LAUNCHER="$T/launcher" LOG="$T/log" sh "$S/watch.sh"; }
 BAR_HDMI='2026-10-20T12:26:20Z [30.1] user.info surface-manager-starfish [] LSM NL_HOME_SHOWN {"CLOCK":30.1,"foregroundId":"com.webos.app.hdmi1","wedge_image":""}'
-BAR_SELF='2026-10-20T12:26:50Z [60.0] user.info surface-manager-starfish [] LSM NL_HOME_SHOWN {"CLOCK":60.0,"foregroundId":"tld.my.customlauncher","wedge_image":""}'
+BAR_SELF='2026-10-20T12:26:50Z [60.0] user.info surface-manager-starfish [] LSM NL_HOME_SHOWN {"CLOCK":60.0,"foregroundId":"com.oridin.spoke","wedge_image":""}'
 OTHER='2026-10-20T12:26:23Z [32.9] user.info surface-manager-starfish [] LSM NL_APP_LAUNCH {"app_id":"com.webos.app.hdmi1"}'
 fresh; printf '%s
 ' "$BAR_HDMI" | bar

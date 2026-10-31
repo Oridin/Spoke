@@ -13,7 +13,7 @@ const eq = (got, want, name) => { const ok = JSON.stringify(got) === JSON.string
 const disks = [{mount: '/', totalMB: 1200, freeMB: 0}, {mount: '/var', totalMB: 722, freeMB: 255}, {mount: '/mnt/lg/appstore', totalMB: 2000, freeMB: 720}];
 const page2 = (stats) => a.debugPages({about: '', rootDetail: '', appList: null, weather: 'off', config: a.DEFAULT_CONFIG, events: [], userAgent: 'Chrome/87.0', stats})[1].lines.join('\n');
 const low = page2({ramTotalMB: 1200, ramFreeMB: 80, disks});
-eq(low.indexOf('FREE RAM TOO LOW: HEARTH MIGHT BEHAVE UNEXPECTEDLY') !== -1, true, 'under 100 MB free: the warning is shown');
+eq(low.indexOf('FREE RAM TOO LOW: SPOKE MIGHT BEHAVE UNEXPECTEDLY') !== -1, true, 'under 100 MB free: the warning is shown');
 eq(page2({ramTotalMB: 1200, ramFreeMB: 100, disks}).indexOf('FREE RAM') === -1, true, '100 MB free: no warning');
 eq(page2({ramTotalMB: 1200, ramFreeMB: -1, disks}).indexOf('FREE RAM') === -1, true, 'unknown RAM: no warning');
 const ok = page2({ramTotalMB: 1200, ramFreeMB: 234, disks});

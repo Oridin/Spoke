@@ -3,7 +3,7 @@
 //
 // How it works: a small black "shim" app is bind-mounted over LG Home's own folder, so the TV's app manager reads it as
 // LG Home. Everything that opens LG Home (Home, Back out of the last app, waking from standby) opens the shim, which
-// opens Hearth. LG Home itself never starts. The mount lives in memory only: a reboot puts LG Home back, and a link in
+// opens Spoke. LG Home itself never starts. The mount lives in memory only: a reboot puts LG Home back, and a link in
 // the startup folder does it again about 25 s into the start.
 
 import {lastLine, parseExit, withStatus, writeFileCommands, type InstallStep} from './homehookcmd';
@@ -72,12 +72,12 @@ export function installSteps (files: TakeoverFiles): InstallStep[] {
 		{name: 'make the script runnable', command: `chmod +x '${SCRIPT}'`},
 		// choosing this method is the permission to restart the TV's app manager (SAM), the only way on webOS 7
 		{name: 'allow restarting SAM', command: `touch '${TAKEOVER_DIR}/allow-restart'`},
-		{name: 'put Hearth in LG Home\'s place', command: `sh '${SCRIPT}' on`}
+		{name: 'put Spoke in LG Home\'s place', command: `sh '${SCRIPT}' on`}
 	];
 }
 
 /** The step that can take long (the TV is asked to read LG Home's manifest again): it gets a longer timeout. */
-export const SLOW_STEP = 'put Hearth in LG Home\'s place';
+export const SLOW_STEP = 'put Spoke in LG Home\'s place';
 
 // if/else, not `a && b || c`: the script exits non-zero when it refuses, and that must not also print the fallback
 // The installed version is printed first, so one call does both: whether the copy on the TV is current, and the apply itself
@@ -88,7 +88,7 @@ export function parseApplyOutput (output: string): {version: string; result: Tak
 	const match = /^version=(.*)$/m.exec(output);
 	return {version: match ? match[1].trim() : '', result: parseTakeoverResult(output)};
 }
-/** LG's own Home is wanted: the TV is given it back now, and Hearth takes the place again once LG Home has been left. */
+/** LG's own Home is wanted: the TV is given it back now, and Spoke takes the place again once LG Home has been left. */
 export const STOCK_COMMAND = withStatus(`if [ -f '${SCRIPT}' ]; then sh '${SCRIPT}' stock; else echo stock; fi`);
 /** What LG Home's place being given back is answered with: `stock` (done), or `unsupported` (it would take a second restart of sam). */
 export type StockResult = 'stock' | 'unsupported' | 'failed';
@@ -109,8 +109,8 @@ export function parseRemoved (output: string): boolean {
 
 export function takeoverMessage (result: TakeoverResult, detail = ''): string {
 	switch (result) {
-		case 'applied': return 'On: Hearth now has LG Home\'s place. LG Home will not show';
-		case 'launcher-missing': return 'Hearth must be installed to do this';
+		case 'applied': return 'On: Spoke now has LG Home\'s place. LG Home will not show';
+		case 'launcher-missing': return 'Spoke must be installed to do this';
 		case 'files-missing': return 'The files are missing, nothing was changed';
 		case 'sam-refused': return 'This TV did not accept it (it would not read the replacement). LG Home was left as it was. Details: /tmp/launcher-takeover.log on the TV';
 		case 'needs-restart': return 'This TV can only do it by restarting its app manager (SAM), which was not allowed. Nothing was changed';

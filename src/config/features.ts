@@ -1,4 +1,4 @@
-// Build-time switches. The weather widget can be left out of a build (HEARTH_WEATHER=0 npm run build): its code is
+// Build-time switches. The weather widget can be left out of a build (SPOKE_WEATHER=0 npm run build): its code is
 // then removed from the bundle, not just hidden.
 
 declare const __WEATHER__: boolean | undefined;

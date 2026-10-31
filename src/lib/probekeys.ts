@@ -1,4 +1,4 @@
-// Probe tests 26-27 (Tests tab only), for the planned "bind the Home button to Hearth" option (needs the Input Hook app).
+// Probe tests 26-27 (Tests tab only), for the planned "bind the Home button to Spoke" option (needs the Input Hook app).
 // 26: does a web page receive the remote's keys, and does the Home button reach it? It lists every key seen
 //     (key code, name) during 20 seconds and whether the page was hidden or shown meanwhile.
 // 27: (rooted TVs) is Input Hook installed, where are its files, and what does its log say? Only reads.
@@ -52,7 +52,7 @@ const SCRIPT = [
 export const KEY_TESTS: ProbeTest[] = [
 	{
 		id: 'homekey', manual: true, label: '26. Remote keys and the Home button',
-		description: 'Starts a 20 second window: press Home, then other keys (Back, a colour key, Menu), and come back to Hearth. Lists every key code the page received and whether the page was hidden.',
+		description: 'Starts a 20 second window: press Home, then other keys (Back, a colour key, Menu), and come back to Spoke. Lists every key code the page received and whether the page was hidden.',
 		run: captureKeys
 	},
 	{

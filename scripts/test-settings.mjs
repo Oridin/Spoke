@@ -24,7 +24,7 @@ const p = await import(out);
 const s = await import(storageOut);
 let fail = 0;
 const eq = (a, b, m) => { const ok = JSON.stringify(a) === JSON.stringify(b); if (!ok) { fail++; console.log('FAIL', m, JSON.stringify(a), '!=', JSON.stringify(b)); } else console.log('ok  ', m); };
-const KEY = 'customlauncher-config-v1';
+const KEY = 'spoke-config-v1';
 
 // ---- defaults and loading ----
 const d = s.loadConfig();

@@ -10,9 +10,9 @@ import preact from '@preact/preset-vite';
 //     everything (dependencies included) is compiled down to the chrome53 target.
 const BROWSER_TARGET = 'chrome53';
 
-// HEARTH_LEGACY=1 builds the bundle for Chromium 38 (webOS 3.x) into dist-legacy/; scripts/legacy.mjs turns it into
+// SPOKE_LEGACY=1 builds the bundle for Chromium 38 (webOS 3.x) into dist-legacy/; scripts/legacy.mjs turns it into
 // dist/assets/app.legacy.js (ES5 plus polyfills). The page picks the bundle at start (see `classicScriptTag`).
-const LEGACY = !!((globalThis as unknown as {process?: {env: Record<string, string | undefined>}}).process || {env: {}}).env.HEARTH_LEGACY;
+const LEGACY = !!((globalThis as unknown as {process?: {env: Record<string, string | undefined>}}).process || {env: {}}).env.SPOKE_LEGACY;
 
 /** Replaces Vite's module entry tag with a classic loader script that picks the bundle (see below). */
 function classicScriptTag (): Plugin {
@@ -33,12 +33,12 @@ function classicScriptTag (): Plugin {
 	};
 }
 
-// HEARTH_WEATHER=0 builds without the weather widget (the code is removed from the bundle).
+// SPOKE_WEATHER=0 builds without the weather widget (the code is removed from the bundle).
 const env = (globalThis as unknown as {process?: {env: Record<string, string | undefined>}}).process;
-const WEATHER = !(env && env.env.HEARTH_WEATHER === '0');
+const WEATHER = !(env && env.env.SPOKE_WEATHER === '0');
 
 export default defineConfig({
-	define: {__LEGACY__: JSON.stringify(LEGACY), __WEATHER__: JSON.stringify(WEATHER), __PROBE__: JSON.stringify(!!(env && env.env.HEARTH_PROBE === '1'))},
+	define: {__LEGACY__: JSON.stringify(LEGACY), __WEATHER__: JSON.stringify(WEATHER), __PROBE__: JSON.stringify(!!(env && env.env.SPOKE_PROBE === '1'))},
 	base: './',            // the app is loaded from a local file path on the TV
 	plugins: [preact(), classicScriptTag()],
 	build: {

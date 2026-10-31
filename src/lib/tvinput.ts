@@ -12,7 +12,7 @@ const EIM = 'luna://com.webos.service.eim';
 function eimCommand (method: 'addDevice' | 'deleteDevice'): string {
 	// pigImage must be present (the TV's input manager crashes without it) and mvpdIcon is needed on older webOS;
 	// label and description are what the TV shows for the input. The app's appinfo.json must have "supportGIP": true.
-	const params = `{"appId":"${APP_ID}","pigImage":"","mvpdIcon":"","label":"Hearth","description":"Hearth home screen"}`;
+	const params = `{"appId":"${APP_ID}","pigImage":"","mvpdIcon":"","label":"Spoke","description":"Spoke home screen"}`;
 	return [
 		'SEND=luna-send-pub',
 		'command -v luna-send-pub >/dev/null 2>&1 || SEND=luna-send',          // the public bus tool, or the usual one

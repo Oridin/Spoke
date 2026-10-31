@@ -94,7 +94,7 @@ const BASE_TESTS: ProbeTest[] = [
 			return Promise.resolve(good(parts.join(' · ') || 'no information available'));
 		}
 	},
-	listTest('launchpoints', '2. List apps: listLaunchPoints', 'Asks the TV for every app on its home screen (what a rooted Hearth uses).',
+	listTest('launchpoints', '2. List apps: listLaunchPoints', 'Asks the TV for every app on its home screen (what a rooted Spoke uses).',
 		'luna://com.webos.applicationManager/listLaunchPoints', 'launchPoints', (i) => String(i.title || i.id || ''), 'apps'),
 	listTest('listapps', '3. List apps: listApps', 'The older call for the list of installed apps.',
 		'luna://com.webos.applicationManager/listApps', 'apps', (i) => String(i.title || i.id || ''), 'apps'),
@@ -102,7 +102,7 @@ const BASE_TESTS: ProbeTest[] = [
 		'luna://com.webos.applicationManager/dev/listApps', 'apps', (i) => String(i.title || i.id || ''), 'apps'),
 	{
 		id: 'appinfo', label: '5. Details of one app: getAppInfo',
-		description: 'Asks for the title and icon file of LG Home and of Hearth itself.',
+		description: 'Asks for the title and icon file of LG Home and of Spoke itself.',
 		run: () => Promise.all(['com.webos.app.home', APP_ID].map((id) => call('luna://com.webos.applicationManager/getAppInfo', {id}).then(
 			(r) => { const a = (r.appInfo || {}) as Json; return `${id.split('.').pop()}: ${a.title || '?'} / icon ${a.icon ? 'given' : 'none'}`; },
 			(e) => `${id.split('.').pop()}: ${bad(e).text.replace('FAILED ', '')}`
@@ -110,7 +110,7 @@ const BASE_TESTS: ProbeTest[] = [
 	},
 	{
 		id: 'loadstatus', label: '6. Is an app installed: getAppLoadStatus',
-		description: 'Checks every app in Hearth\'s built-in list, plus one made-up ID that must NOT be found (to prove the answers are real).',
+		description: 'Checks every app in Spoke\'s built-in list, plus one made-up ID that must NOT be found (to prove the answers are real).',
 		run: () => {
 			const ids = APP_CATALOG.map((a) => a.id);
 			const check = (id: string) => call(LUNA.appLoadStatus, {appId: id}).then((r) => r.exist === true, () => null);
@@ -128,7 +128,7 @@ const BASE_TESTS: ProbeTest[] = [
 	},
 	{
 		id: 'foreground', label: '7. Which app is in front: getForegroundAppInfo',
-		description: 'Asks which app is on screen right now (it should say Hearth).',
+		description: 'Asks which app is on screen right now (it should say Spoke).',
 		run: () => call('luna://com.webos.applicationManager/getForegroundAppInfo', {}).then((r) => good(`${r.appId || 'unknown'}`), bad)
 	},
 	{
@@ -165,23 +165,23 @@ const BASE_TESTS: ProbeTest[] = [
 	},
 	{
 		id: 'icons', label: '15. Reading app icon files',
-		description: 'Can a web app show the picture files of apps stored on the TV? (Hearth\'s own icon is the control.)',
+		description: 'Can a web app show the picture files of apps stored on the TV? (Spoke\'s own icon is the control.)',
 		run: () => Promise.all([imageLoads('icon.png')].concat(ICON_PATHS.map((p) => imageLoads('file://' + p[1])))).then((res) => {
-			const names = ['Hearth\'s own'].concat(ICON_PATHS.map((p) => p[0]));
+			const names = ['Spoke\'s own'].concat(ICON_PATHS.map((p) => p[0]));
 			const text = names.map((n, i) => `${n} ${res[i] ? 'shows' : 'blocked'}`).join(', ');
 			return {ok: res.slice(1).some(Boolean), text: clip((res.slice(1).some(Boolean) ? 'OK: ' : 'NO: ') + text, 230)};
 		})
 	},
 	{
 		id: 'homebrew', label: '16. Homebrew Channel service',
-		description: 'Does the TV answer the Homebrew Channel\'s shell service (this is what "rooted" means for Hearth)?',
+		description: 'Does the TV answer the Homebrew Channel\'s shell service (this is what "rooted" means for Spoke)?',
 		run: () => call(LUNA.homebrewExec, {command: 'id -u'}).then((r) => good(`answered; this shell runs as user ${String(r.stdoutString || '?').trim()} (0 = root)`), bad)
 	},
 	{
 		id: 'storage', label: '17. Saving settings',
-		description: 'Can Hearth save and read back its settings in the TV\'s web storage?',
+		description: 'Can Spoke save and read back its settings in the TV\'s web storage?',
 		run: () => {
-			try { window.localStorage.setItem('hearth-probe', 'x'); const v = window.localStorage.getItem('hearth-probe'); window.localStorage.removeItem('hearth-probe'); return Promise.resolve(v === 'x' ? good('settings can be saved') : {ok: false, text: 'FAILED: wrote but could not read back'}); } catch (e) { return Promise.resolve(bad(e)); }
+			try { window.localStorage.setItem('spoke-probe', 'x'); const v = window.localStorage.getItem('spoke-probe'); window.localStorage.removeItem('spoke-probe'); return Promise.resolve(v === 'x' ? good('settings can be saved') : {ok: false, text: 'FAILED: wrote but could not read back'}); } catch (e) { return Promise.resolve(bad(e)); }
 		}
 	}
 ];
