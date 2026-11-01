@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'preact/hooks';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Clock} from '../components/Clock';
 import {Row} from '../components/Row';
 import type {TileModel} from '../components/Tile';
@@ -16,6 +16,9 @@ import {TrendingSidebar} from '../components/TrendingSidebar';
 import type {TrendingData} from '../lib/trending';
 import type {TrendingConfig, CinemaConfig} from '../lib/storage';
 import {CinemaPanel} from './Cinema';
+import {PlexPlayer} from './PlexPlayer';
+import {getPlexIndex, refreshPlexIndex, onPlexIndexChange, type PlexIndex} from '../lib/plex';
+import {getHiddenSections} from '../lib/pin';
 
 export interface Appearance {
 	/** icon size, % of the standard size */
@@ -114,6 +117,7 @@ function useShift (on: boolean): {x: number; y: number} | null {
 export function Home ({items, timeFormat, appearance, active, paused, onActivate, onLongPress, onBack, wake, focus, weather, trending, trendingConfig, installedAppIds, onLaunch, onSeedbox, cinemaConfig, onToast, apiKey, allowShell, providerIds, plexUrl, plexToken, showHidden, onRelockHidden, sonarrUrl, sonarrKey, radarrUrl, radarrKey, enableDeleteActions}: Props) {
 	const cinemaOn = !!(cinemaConfig && cinemaConfig.on && trending && trending.shows.length + trending.movies.length > 0);
 	const [cinemaActive, setCinemaActive] = useState(false);
+	const [plexPlay, setPlexPlay] = useState<{ratingKey: string; title: string} | null>(null);
 	const now = useClock(paused);
 	const [position, setPosition] = useState<RowsPosition>(initialPosition);
 	const sizes = splitRows(items.length, appearance.rows);
@@ -124,6 +128,16 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 	const quietRef = useRef(false);                       // true while the apps are hidden and for the key press that woke them
 	const [quiet, setQuiet] = useState(false);
 	const shift = useShift(appearance.oledShift && !paused);
+
+	var hiddenSections = useMemo(function () { return showHidden ? [] as string[] : getHiddenSections(); }, [showHidden]);
+	var [plexIdx, setPlexIdx] = useState<PlexIndex | null>(function () { return getPlexIndex(plexUrl || '', plexToken || '', hiddenSections); });
+	useEffect(function () {
+		setPlexIdx(getPlexIndex(plexUrl || '', plexToken || '', hiddenSections));
+		return onPlexIndexChange(function () { setPlexIdx(getPlexIndex(plexUrl || '', plexToken || '', hiddenSections)); });
+	}, [plexUrl, plexToken, hiddenSections]);
+	useEffect(function () {
+		if (active && plexUrl && plexToken) refreshPlexIndex(plexUrl, plexToken, hiddenSections);
+	}, [active, plexUrl, plexToken, hiddenSections]);
 
 	// Quiet mode: hide the apps after quietSec without a key; the first key (or pointer move) brings them back and is used up.
 	useEffect(() => {
@@ -211,12 +225,12 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 	return (
 		<div class={`screen${active ? '' : ' screen--away'}${shift ? ' screen--shift' : ''}${shiftVars.cls ? ' ' + shiftVars.cls : ''}`} style={shiftVars.css || undefined}>
 			{cinemaOn && trending ? (
-				<CinemaPanel trending={trending} installedAppIds={installedAppIds} onLaunch={onLaunch} onToast={onToast} active={active && cinemaActive} onExitDown={() => setCinemaActive(false)} rowAreaPx={appearance.bottomMargin + tileSize + (appearance.showLabels ? 32 : 8) + 24} apiKey={apiKey || ''} allowShell={!!allowShell} providerIds={providerIds || []} plexUrl={plexUrl || ''} plexToken={plexToken || ''} showHidden={!!showHidden} onRelockHidden={onRelockHidden || (() => {})} sonarrUrl={sonarrUrl || ''} sonarrKey={sonarrKey || ''} radarrUrl={radarrUrl || ''} radarrKey={radarrKey || ''} enableDeleteActions={!!enableDeleteActions} />
+				<CinemaPanel trending={trending} installedAppIds={installedAppIds} onLaunch={onLaunch} onToast={onToast} active={active && cinemaActive && !plexPlay} onExitDown={() => setCinemaActive(false)} rowAreaPx={appearance.bottomMargin + tileSize + (appearance.showLabels ? 32 : 8) + 24} apiKey={apiKey || ''} allowShell={!!allowShell} providerIds={providerIds || []} plexUrl={plexUrl || ''} plexToken={plexToken || ''} showHidden={!!showHidden} onRelockHidden={onRelockHidden || (() => {})} sonarrUrl={sonarrUrl || ''} sonarrKey={sonarrKey || ''} radarrUrl={radarrUrl || ''} radarrKey={radarrKey || ''} enableDeleteActions={!!enableDeleteActions} onPlayPlex={function (rk, t) { setPlexPlay({ratingKey: rk, title: t}); }} />
 			) : (
 				<>
 					<Clock now={now} format={timeFormat} config={appearance.clock} weather={weather} />
-					{trending && trendingConfig && trending.shows.length > 0 && <TrendingSidebar title="Trending Shows" shows={trending.shows.slice(0, trendingConfig.maxShows)} side="left" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} />}
-					{trending && trendingConfig && trending.movies.length > 0 && <TrendingSidebar title="Trending Movies" shows={trending.movies.slice(0, trendingConfig.maxMovies)} side="right" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} />}
+					{trending && trendingConfig && trending.shows.length > 0 && <TrendingSidebar title="Trending Shows" shows={trending.shows.slice(0, trendingConfig.maxShows)} side="left" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} plexIdx={plexIdx} />}
+					{trending && trendingConfig && trending.movies.length > 0 && <TrendingSidebar title="Trending Movies" shows={trending.movies.slice(0, trendingConfig.maxMovies)} side="right" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} plexIdx={plexIdx} />}
 				</>
 			)}
 			<div class={classes} style={rowStyle}>
@@ -237,6 +251,7 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 					);
 				})}
 			</div>
+			{plexPlay && <PlexPlayer plexUrl={plexUrl || ''} plexToken={plexToken || ''} ratingKey={plexPlay.ratingKey} title={plexPlay.title} onClose={function () { setPlexPlay(null); }} onToast={onToast} />}
 		</div>
 	);
 }

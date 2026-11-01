@@ -3,6 +3,7 @@ import {useKeys, clamp, type NavKey} from '../hooks/useKeys';
 import {useOkPress} from '../hooks/useOkPress';
 import {backdropUrl, posterUrlXL, yearOf, type TrendingShow, type ShowProvider, type MediaType} from '../lib/trending';
 import {fetchGenres, fetchDiscover, fetchSearchResults, attachItemProviders, sortApiValue, type Genre, type DiscoverParams} from '../lib/tmdb';
+import type {PlexIndex} from '../lib/plex';
 
 interface Props {
 	apiKey: string;
@@ -12,6 +13,7 @@ interface Props {
 	onOpenPanel: (item: TrendingShow) => void;
 	onExitLeft: () => void;
 	onToast: (msg: string, kind?: 'info' | 'error') => void;
+	plexIdx?: PlexIndex | null;
 }
 
 type BrowseZone = 'bar' | 'rows' | 'sort' | 'filter' | 'search';
@@ -57,7 +59,7 @@ const SORT_OPTIONS: {key: SortKey; label: string}[] = [
 	{key: 'newest', label: 'Newest'},
 ];
 
-export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, onExitLeft, onToast}: Props) {
+export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, onExitLeft, onToast, plexIdx}: Props) {
 	const [mediaType, setMediaType] = useState<MediaType>('movie');
 	const [zone, setZone] = useState<BrowseZone>('rows');
 	const [barIdx, setBarIdx] = useState(0);
@@ -525,6 +527,7 @@ export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, o
 											return (
 												<div key={item.id} class={'cinema__card' + (focused ? ' cinema__card--focused' : '')}>
 													{p ? <img class="cinema__poster" src={p} alt="" /> : <div class="cinema__poster cinema__poster--empty" />}
+													{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
 													<div class="cinema__card-title">{item.name}</div>
 													<div class="cinema__card-year">{yearOf(item.firstAir)}</div>
 												</div>
@@ -548,6 +551,7 @@ export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, o
 											return (
 												<div key={item.id} class={'cinema__card' + (focused ? ' cinema__card--focused' : '')}>
 													{p ? <img class="cinema__poster" src={p} alt="" /> : <div class="cinema__poster cinema__poster--empty" />}
+													{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
 													<div class="cinema__card-title">{item.name}</div>
 													<div class="cinema__card-year">{yearOf(item.firstAir)}</div>
 												</div>

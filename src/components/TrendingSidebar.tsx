@@ -1,6 +1,7 @@
 import {useState, useRef, useCallback} from 'preact/hooks';
 import {yearOf, posterUrl, providerDef, findProviderApp, type TrendingShow} from '../lib/trending';
 import type {TrendingConfig} from '../lib/storage';
+import type {PlexIndex} from '../lib/plex';
 
 interface Props {
 	title: string;
@@ -10,6 +11,7 @@ interface Props {
 	installedAppIds: string[];
 	onLaunch: (appId: string) => void;
 	onSeedbox: (name: string, year: string, mediaType: string) => void;
+	plexIdx?: PlexIndex | null;
 }
 
 function largePoster (path: string | null): string | null {
@@ -17,7 +19,7 @@ function largePoster (path: string | null): string | null {
 	return 'https://image.tmdb.org/t/p/w342' + path;
 }
 
-export function TrendingSidebar ({title, shows, side, config, installedAppIds, onLaunch, onSeedbox}: Props) {
+export function TrendingSidebar ({title, shows, side, config, installedAppIds, onLaunch, onSeedbox, plexIdx}: Props) {
 	if (shows.length === 0) return null;
 	const [highlighted, setHighlighted] = useState<number | null>(null);
 	const [selected, setSelected] = useState<number | null>(null);
@@ -89,7 +91,12 @@ export function TrendingSidebar ({title, shows, side, config, installedAppIds, o
 							onClick={(e: MouseEvent) => { e.preventDefault(); onActivate(show.id); }}
 							onKeyDown={(e: KeyboardEvent) => { if (e.keyCode === 13 || e.keyCode === 32) { e.preventDefault(); onActivate(show.id); } }}
 						>
-							{thumb && <img class="trending-sidebar__poster" src={thumb} alt="" />}
+							{thumb && (
+								<div class="trending-sidebar__poster-wrap">
+									<img class="trending-sidebar__poster" src={thumb} alt="" />
+									{plexIdx && plexIdx.has(show.mediaType, show.id) && <div class="trending-sidebar__server-dot" />}
+								</div>
+							)}
 							<div class="trending-sidebar__info">
 								<div class="trending-sidebar__name" style={{fontSize: nameFontSize + 'px'}}>{show.name}{detail !== 'minimal' && year ? ` (${year})` : ''}</div>
 								{detail !== 'minimal' && (

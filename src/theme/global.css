@@ -795,6 +795,12 @@ html, body {
 
 .trending-sidebar--right .trending-sidebar__item { flex-direction: row-reverse; }
 
+.trending-sidebar__poster-wrap {
+	position: relative;
+	width: 40px;
+	height: 60px;
+	flex-shrink: 0;
+}
 .trending-sidebar__poster {
 	width: 40px;
 	height: 60px;
@@ -1108,6 +1114,32 @@ html, body {
 .cinema__sidebar--active .cinema__nav span {
 	opacity: 1;
 }
+.cinema__nav-badge {
+	position: absolute;
+	top: 14px;
+	left: 44px;
+	background: #e53935;
+	color: #fff;
+	font-size: 0;
+	font-weight: 700;
+	line-height: 1;
+	width: 10px;
+	height: 10px;
+	padding: 0;
+	border-radius: 50%;
+	transition: all 200ms ease-out;
+}
+.cinema__sidebar--active .cinema__nav-badge {
+	position: static;
+	margin-left: 8px;
+	width: auto;
+	height: auto;
+	font-size: 12px;
+	padding: 3px 6px;
+	border-radius: 10px;
+	min-width: 18px;
+	text-align: center;
+}
 
 /* --- main content (flex column: hero + rows) --- */
 
@@ -1232,6 +1264,7 @@ html, body {
 }
 
 .cinema__card {
+	position: relative;
 	display: inline-block;
 	width: 200px;
 	margin-right: 20px;
@@ -1709,6 +1742,44 @@ img.browse__search-poster {
 	background: #4caf50;
 	border: 2px solid rgba(0, 0, 0, 0.4);
 }
+.plex-server-badge {
+	position: absolute;
+	bottom: 10px;
+	left: 8px;
+	display: -webkit-box;
+	display: -webkit-flex;
+	display: flex;
+	-webkit-align-items: center;
+	align-items: center;
+	background: rgba(229, 160, 13, 0.9);
+	color: #000;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
+	padding: 3px 7px 3px 5px;
+	border-radius: 6px;
+	pointer-events: none;
+	opacity: 1;
+	transition: opacity 200ms ease-out;
+}
+.plex-server-badge__icon {
+	margin-right: 3px;
+	font-size: 11px;
+}
+.cinema__card--focused .plex-server-badge {
+	opacity: 0;
+}
+.trending-sidebar__server-dot {
+	position: absolute;
+	bottom: 3px;
+	left: 3px;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: #e5a00d;
+	border: 1.5px solid rgba(0, 0, 0, 0.5);
+	pointer-events: none;
+}
 .plex-detail-summary {
 	font-size: 18px;
 	line-height: 1.5;
@@ -2065,6 +2136,139 @@ img.browse__search-poster {
 	border-radius: 2px;
 	transition: width 0.3s ease-out;
 }
+
+.plex-player {
+	position: fixed;
+	top: 0; left: 0;
+	width: 100%; height: 100%;
+	background: #000;
+	z-index: 9999;
+}
+.plex-player__video {
+	width: 100%; height: 100%;
+	object-fit: contain;
+}
+.plex-player__overlay {
+	position: absolute;
+	left: 0; right: 0; bottom: 0;
+	padding: 40px 60px;
+	background: linear-gradient(transparent, rgba(0,0,0,0.85));
+}
+.plex-player__title {
+	font-size: 28px;
+	font-weight: 600;
+	margin-bottom: 16px;
+}
+.plex-player__controls {
+	display: flex;
+	align-items: center;
+}
+.plex-player__time {
+	font-size: 16px;
+	opacity: 0.8;
+	min-width: 70px;
+}
+.plex-player__time:last-child { text-align: right; }
+.plex-player__bar {
+	flex: 1;
+	height: 4px;
+	background: rgba(255,255,255,0.2);
+	border-radius: 2px;
+	margin: 0 16px;
+	overflow: hidden;
+}
+.plex-player__bar-fill {
+	height: 100%;
+	background: #e5a00d;
+	border-radius: 2px;
+	transition: width 0.3s ease-out;
+}
+.plex-player__buffering,
+.plex-player__paused {
+	font-size: 18px;
+	margin-top: 12px;
+	opacity: 0.7;
+}
+.plex-player__hint {
+	font-size: 14px;
+	opacity: 0.5;
+	margin-top: 8px;
+}
+.plex-player__loading,
+.plex-player__error {
+	position: absolute;
+	top: 50%; left: 50%;
+	transform: translate(-50%, -50%);
+	text-align: center;
+	font-size: 22px;
+}
+.plex-player__error h2 { margin-bottom: 12px; }
+.plex-player__error p { opacity: 0.7; font-size: 18px; margin-top: 8px; }
+
+/* Spoke branded loader */
+.plex-player__spoke-loader {
+	position: absolute;
+	top: 50%; left: 50%;
+	transform: translate(-50%, -50%);
+	text-align: center;
+}
+.plex-player__spoke-ring {
+	width: 80px; height: 80px;
+	border: 3px solid rgba(232,126,36,0.15);
+	border-top-color: #e87e24;
+	border-radius: 50%;
+	animation: spoke-spin 1s linear infinite;
+	margin: 0 auto 20px;
+	position: relative;
+}
+.plex-player__spoke-ring::after {
+	content: 'S';
+	position: absolute;
+	top: 50%; left: 50%;
+	transform: translate(-50%, -50%);
+	font-size: 28px;
+	font-weight: 700;
+	color: #e87e24;
+	animation: spoke-pulse 2s ease-in-out infinite;
+}
+@keyframes spoke-spin {
+	to { transform: rotate(360deg); }
+}
+@keyframes spoke-pulse {
+	0%, 100% { opacity: 0.6; }
+	50% { opacity: 1; }
+}
+.plex-player__spoke-text {
+	font-size: 14px;
+	letter-spacing: 4px;
+	text-transform: uppercase;
+	color: rgba(255,255,255,0.5);
+}
+/* Spoke watermark in player overlay */
+.plex-player__watermark {
+	position: absolute;
+	top: 40px; right: 60px;
+	font-size: 13px;
+	letter-spacing: 3px;
+	font-weight: 700;
+	color: #e87e24;
+	opacity: 0.4;
+	text-transform: uppercase;
+}
+/* Centered buffering spinner (mid-playback) */
+.plex-player__buffer-spinner {
+	position: absolute;
+	top: 50%; left: 50%;
+	transform: translate(-50%, -50%);
+}
+.plex-player__buffer-spinner .plex-player__spoke-ring {
+	width: 56px; height: 56px;
+	margin-bottom: 0;
+}
+.plex-player__buffer-spinner .plex-player__spoke-ring::after {
+	font-size: 20px;
+}
+
 
 .downloads__confirm-overlay {
 	position: absolute;

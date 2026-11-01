@@ -34,6 +34,7 @@ interface Props {
 	sonarrKey?: string;
 	radarrUrl?: string;
 	radarrKey?: string;
+	onPlayPlex?: (ratingKey: string, title: string) => void;
 }
 
 type ServerZone = 'bar' | 'rows' | 'sort' | 'filter' | 'search' | 'detail';
@@ -113,7 +114,7 @@ function cardSub (item: PlexItem): string {
 function cardThumb (item: PlexItem): string | undefined { return item.type === 'episode' ? (item.grandparentThumb || item.thumb) : item.thumb; }
 function cardArt (item: PlexItem): string | undefined { return item.art || item.grandparentArt; }
 
-export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, onToast, sonarrUrl, sonarrKey, radarrUrl, radarrKey}: Props) {
+export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, onToast, sonarrUrl, sonarrKey, radarrUrl, radarrKey, onPlayPlex}: Props) {
 	var [allSections, setAllSections] = useState<PlexSection[]>([]);
 	var [sectionIdx, setSectionIdx] = useState(0);
 	var [zone, setZone] = useState<ServerZone>('rows');
@@ -773,7 +774,10 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 			if (zone === 'detail' && detail) {
 				if (detail.loading) return;
 				if (detail.level === 'info') {
-					if (detail.btnIdx === 0) { launchPlex(); setDetail(null); setZone('rows'); return; }
+					if (detail.btnIdx === 0) {
+						if (onPlayPlex) { onPlayPlex(detail.item.ratingKey, detail.item.title); setDetail(null); setZone('rows'); return; }
+						launchPlex(); setDetail(null); setZone('rows'); return;
+					}
 					var hasArrBtns = hasArr && (detail.item.type === 'show' || detail.item.type === 'movie');
 					if (hasArrBtns && detail.btnIdx === 1) {
 						if (detail.item.type === 'show') {
@@ -1084,7 +1088,7 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 							{' · '}{detail.item.type === 'show' ? 'TV Show' : detail.item.type === 'episode' ? 'Episode' : 'Movie'}
 						</p>
 						<button class={'cinema__panel-btn' + (detail.btnIdx === 0 ? ' cinema__panel-btn--focused' : '')}>
-							<span class="cinema__panel-btn-icon">{'▶'}</span>Play on Plex
+							<span class="cinema__panel-btn-icon">{'▶'}</span>{onPlayPlex ? 'Play' : 'Play on Plex'}
 						</button>
 						{hasArr && (detail.item.type === 'show' || detail.item.type === 'movie') && (
 							<button class={'cinema__panel-btn' + (detail.btnIdx === 1 ? ' cinema__panel-btn--focused' : '')}>

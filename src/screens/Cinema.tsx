@@ -11,6 +11,7 @@ import {useKeyTrap} from '../hooks/useKeyTrap';
 import {launchApp} from '../lib/launch';
 import {getPlexIndex, refreshPlexIndex, onPlexIndexChange, type PlexIndex} from '../lib/plex';
 import {getHiddenSections} from '../lib/pin';
+import {startMonitor, stopMonitor, getUnreadCount, clearUnread, onUnreadChange} from '../lib/dlmonitor';
 import {
 	sonarrConn, radarrConn,
 	watchlistAddSeriesByTmdb, watchlistAddMovie,
@@ -45,11 +46,12 @@ interface Props {
 	radarrUrl: string;
 	radarrKey: string;
 	enableDeleteActions: boolean;
+	onPlayPlex?: (ratingKey: string, title: string) => void;
 }
 
 type TabId = 'home' | 'browse' | 'server' | 'watchlist' | 'downloads';
 
-const TABS: {id: TabId; label: string}[] = [
+var BASE_TABS: {id: TabId; label: string}[] = [
 	{id: 'home', label: 'Home'},
 	{id: 'browse', label: 'Browse'},
 	{id: 'server', label: 'My Server'},
@@ -107,7 +109,8 @@ function fmtSize (bytes: number | undefined): string {
 	return ' (' + Math.round(bytes / 1024) + ' KB)';
 }
 
-export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, active, onExitDown, rowAreaPx, apiKey, allowShell, providerIds, plexUrl, plexToken, showHidden, onRelockHidden, sonarrUrl, sonarrKey, radarrUrl, radarrKey, enableDeleteActions}: Props) {
+export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, active, onExitDown, rowAreaPx, apiKey, allowShell, providerIds, plexUrl, plexToken, showHidden, onRelockHidden, sonarrUrl, sonarrKey, radarrUrl, radarrKey, enableDeleteActions, onPlayPlex}: Props) {
+	var TABS = BASE_TABS;
 	const [tabIdx, setTabIdx] = useState(0);
 	const [zone, setZone] = useState<Zone>('rows');
 	const [rowIdx, setRowIdx] = useState(0);
@@ -137,6 +140,15 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 	useEffect(function () {
 		if (active && plexUrl && plexToken) refreshPlexIndex(plexUrl, plexToken, hiddenSections);
 	}, [active, plexUrl, plexToken, hiddenSections]);
+
+	var [dlUnread, setDlUnread] = useState(getUnreadCount);
+	useEffect(function () {
+		startMonitor(sonarrUrl, sonarrKey, radarrUrl, radarrKey, onToast);
+		return stopMonitor;
+	}, [sonarrUrl, sonarrKey, radarrUrl, radarrKey]);
+	useEffect(function () {
+		return onUnreadChange(function () { setDlUnread(getUnreadCount()); });
+	}, []);
 
 	const tab = TABS[tabIdx];
 	const col = cols[rowIdx] || 0;
@@ -210,7 +222,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 	const panelBtns: {label: string; action: string}[] = useMemo(() => {
 		if (!panel) return [];
 		var btns: {label: string; action: string}[] = [];
-		if (isOnPlex) btns.push({label: 'Play on Plex', action: 'launch-plex'});
+		if (isOnPlex) btns.push({label: onPlayPlex ? 'Play' : 'Play on Plex', action: 'launch-plex'});
 		for (var i = 0; i < panel.item.providers.length; i++) {
 			var sp = panel.item.providers[i];
 			var def = providerDef(sp.id);
@@ -243,6 +255,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 		setCols({});
 		setZone('sidebar');
 		setPanel(null);
+		if (TABS[i] && TABS[i].id === 'downloads') clearUnread();
 	}, []);
 
 	const openBrowsePanel = useCallback((item: TrendingShow) => {
@@ -723,7 +736,13 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 				if (panel.level === 'actions') {
 					const btn = panelBtns[panel.btnIdx];
 					if (!btn) return;
-					if (btn.action === 'launch-plex') { launchApp(PLEX_APP).catch(function () { onToast("Couldn't open Plex", 'error'); }); setPanel(null); }
+					if (btn.action === 'launch-plex') {
+						if (onPlayPlex && panel && plexIdx) {
+							var rk = plexIdx.getRatingKey(panel.item.mediaType, panel.item.id);
+							if (rk) { onPlayPlex(rk, panel.item.name); setPanel(null); return; }
+						}
+						launchApp(PLEX_APP).catch(function () { onToast("Couldn't open Plex", 'error'); }); setPanel(null);
+					}
 					else if (btn.action === 'on-server') { /* label only, no action */ }
 					else if (btn.action.indexOf('launch:') === 0) { onLaunch(btn.action.slice(7)); setPanel(null); }
 					else if (btn.action === 'watchlist') startWatchlist();
@@ -859,6 +878,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 					>
 						<NavIcon id={t.id} />
 						<span>{t.label}</span>
+						{t.id === 'downloads' && dlUnread > 0 && <span class="cinema__nav-badge">{dlUnread > 99 ? '99+' : dlUnread}</span>}
 					</div>
 				))}
 			</nav>
@@ -873,6 +893,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 						onOpenPanel={openBrowsePanel}
 						onExitLeft={() => setZone('sidebar')}
 						onToast={onToast}
+						plexIdx={plexIdx}
 					/>
 				) : tab.id === 'server' ? (
 					<MyServer
@@ -886,6 +907,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 						sonarrKey={sonarrKey}
 						radarrUrl={radarrUrl}
 						radarrKey={radarrKey}
+						onPlayPlex={onPlayPlex}
 					/>
 				) : tab.id === 'watchlist' ? (
 					<Watchlist
@@ -951,6 +973,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 														{p
 															? <img class="cinema__poster" src={p} alt="" />
 															: <div class="cinema__poster cinema__poster--empty" />}
+														{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
 														<div class="cinema__card-title">{item.name}</div>
 														<div class="cinema__card-year">{yearOf(item.firstAir)}</div>
 													</div>

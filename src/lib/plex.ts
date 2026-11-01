@@ -65,6 +65,10 @@ function plexFetch (url: string, token: string): Promise<string> {
 	});
 }
 
+export function plexFetchJson (url: string, token: string): Promise<Record<string, unknown>> {
+	return plexFetch(url, token).then(function (json) { return JSON.parse(json) as Record<string, unknown>; });
+}
+
 function parseItem (m: Record<string, unknown>): PlexItem {
 	var genres: string[] = [];
 	var g = m.Genre as Array<{tag?: string}> | undefined;
@@ -107,6 +111,15 @@ function parsePage (json: string): PlexPage {
 		if (Array.isArray(meta)) for (var i = 0; i < meta.length; i++) items.push(parseItem(meta[i] as Record<string, unknown>));
 		return {items: items, totalSize: totalSize};
 	} catch { return {items: [], totalSize: 0}; }
+}
+
+export function fetchMachineId (plexUrl: string, token: string): Promise<string> {
+	return plexFetch(base(plexUrl) + '/identity', token).then(function (json) {
+		try {
+			var mc = JSON.parse(json).MediaContainer || {};
+			return (mc.machineIdentifier as string) || '';
+		} catch { return ''; }
+	});
 }
 
 export function fetchSections (plexUrl: string, token: string): Promise<PlexSection[]> {
@@ -211,6 +224,7 @@ export function safeError (e: unknown, token: string): string {
 
 export interface PlexIndex {
 	has (mediaType: 'tv' | 'movie', tmdbId: number): boolean;
+	getRatingKey (mediaType: 'tv' | 'movie', tmdbId: number): string | null;
 }
 
 var INDEX_TTL = 10 * 60 * 1000;
@@ -220,7 +234,7 @@ interface IndexState {
 	url: string;
 	token: string;
 	hiddenKeys: string;
-	set: Record<string, true>;
+	set: Record<string, string>;
 	at: number;
 	loading: boolean;
 }
@@ -230,20 +244,22 @@ var _listeners: Array<() => void> = [];
 
 function indexKey (type: 'tv' | 'movie', tmdbId: number): string { return type + ':' + tmdbId; }
 
-function parseTmdbIds (json: string, sectionType: 'movie' | 'show'): string[] {
+function parseTmdbEntries (json: string, sectionType: 'movie' | 'show'): Array<{key: string; rk: string}> {
 	try {
 		var mc = JSON.parse(json).MediaContainer || {};
 		var meta = mc.Metadata;
 		if (!Array.isArray(meta)) return [];
-		var out: string[] = [];
+		var out: Array<{key: string; rk: string}> = [];
 		for (var i = 0; i < meta.length; i++) {
+			var rk = String((meta[i] as Record<string, unknown>).ratingKey || '');
+			if (!rk) continue;
 			var guids = (meta[i] as Record<string, unknown>).Guid;
 			if (!Array.isArray(guids)) continue;
 			for (var g = 0; g < guids.length; g++) {
 				var id = (guids[g] as Record<string, unknown>).id;
 				if (typeof id === 'string' && id.indexOf('tmdb://') === 0) {
 					var num = parseInt(id.slice(7), 10);
-					if (num > 0) out.push(indexKey(sectionType === 'show' ? 'tv' : 'movie', num));
+					if (num > 0) out.push({key: indexKey(sectionType === 'show' ? 'tv' : 'movie', num), rk: rk});
 				}
 			}
 		}
@@ -251,13 +267,13 @@ function parseTmdbIds (json: string, sectionType: 'movie' | 'show'): string[] {
 	} catch { return []; }
 }
 
-function fetchSectionTmdbIds (plexUrl: string, token: string, sectionId: string, sectionType: 'movie' | 'show'): Promise<string[]> {
-	var all: string[] = [];
-	function page (start: number): Promise<string[]> {
+function fetchSectionEntries (plexUrl: string, token: string, sectionId: string, sectionType: 'movie' | 'show'): Promise<Array<{key: string; rk: string}>> {
+	var all: Array<{key: string; rk: string}> = [];
+	function page (start: number): Promise<Array<{key: string; rk: string}>> {
 		var url = base(plexUrl) + '/library/sections/' + encodeURIComponent(sectionId) + '/all?includeGuids=1&X-Plex-Container-Start=' + start + '&X-Plex-Container-Size=' + INDEX_PAGE;
 		return plexFetch(url, token).then(function (json) {
-			var ids = parseTmdbIds(json, sectionType);
-			for (var i = 0; i < ids.length; i++) all.push(ids[i]);
+			var entries = parseTmdbEntries(json, sectionType);
+			for (var i = 0; i < entries.length; i++) all.push(entries[i]);
 			var mc = (JSON.parse(json) || {}).MediaContainer || {};
 			var total = typeof mc.totalSize === 'number' ? mc.totalSize : 0;
 			if (start + INDEX_PAGE < total) return page(start + INDEX_PAGE);
@@ -267,19 +283,19 @@ function fetchSectionTmdbIds (plexUrl: string, token: string, sectionId: string,
 	return page(0);
 }
 
-function buildIndex (plexUrl: string, token: string, hiddenSections: string[]): Promise<Record<string, true>> {
+function buildIndex (plexUrl: string, token: string, hiddenSections: string[]): Promise<Record<string, string>> {
 	return fetchSections(plexUrl, token).then(function (sections) {
 		var hiddenSet: Record<string, true> = {};
 		for (var h = 0; h < hiddenSections.length; h++) hiddenSet[hiddenSections[h]] = true;
-		var tasks: Array<Promise<string[]>> = [];
+		var tasks: Array<Promise<Array<{key: string; rk: string}>>> = [];
 		for (var i = 0; i < sections.length; i++) {
 			if (hiddenSet[sections[i].key]) continue;
-			tasks.push(fetchSectionTmdbIds(plexUrl, token, sections[i].key, sections[i].type));
+			tasks.push(fetchSectionEntries(plexUrl, token, sections[i].key, sections[i].type));
 		}
 		return Promise.all(tasks).then(function (results) {
-			var set: Record<string, true> = {};
+			var set: Record<string, string> = {};
 			for (var r = 0; r < results.length; r++) {
-				for (var j = 0; j < results[r].length; j++) set[results[r][j]] = true;
+				for (var j = 0; j < results[r].length; j++) set[results[r][j].key] = results[r][j].rk;
 			}
 			return set;
 		});
@@ -314,7 +330,10 @@ export function getPlexIndex (plexUrl: string, token: string, hiddenSections: st
 		refreshPlexIndex(plexUrl, token, hiddenSections);
 	}
 	var set = _idx.set;
-	return {has: function (mediaType, tmdbId) { return set[indexKey(mediaType, tmdbId)] === true; }};
+	return {
+		has: function (mediaType, tmdbId) { return indexKey(mediaType, tmdbId) in set; },
+		getRatingKey: function (mediaType, tmdbId) { var k = indexKey(mediaType, tmdbId); return k in set ? set[k] : null; }
+	};
 }
 
 export function onPlexIndexChange (fn: () => void): () => void {
