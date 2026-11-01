@@ -130,6 +130,23 @@ export interface TrendingConfig {
 	panelOpacity: number;
 }
 
+export interface CinemaConfig {
+	on: boolean;
+	enableDeleteActions: boolean;
+}
+
+export interface ConnectionsConfig {
+	sonarrUrl: string;
+	sonarrKey: string;
+	radarrUrl: string;
+	radarrKey: string;
+	plexUrl: string;
+	plexToken: string;
+	tmdbKey: string;
+	fetchboxUrl: string;
+	fetchboxPasscode: string;
+}
+
 export interface UserConfig {
 	/** the order the user arranged the apps in (apps not listed follow, in the TV's order); null → the TV's order */
 	appIds: string[] | null;
@@ -196,6 +213,8 @@ export interface UserConfig {
 	weather: WeatherConfig;
 	wallpaper: WallpaperConfig;
 	trending: TrendingConfig;
+	cinema: CinemaConfig;
+	connections: ConnectionsConfig;
 }
 
 export const THEME_IDS: ThemeName[] = ['black', 'grey', 'midnight', 'forest', 'cloud', 'sand', 'mist'];
@@ -230,6 +249,23 @@ export const DEFAULT_TRENDING: TrendingConfig = {
 	sideInset: RANGES.trendSide.def,
 	panelWidth: RANGES.trendWidth.def,
 	panelOpacity: RANGES.trendPanelAlpha.def
+};
+
+export const DEFAULT_CINEMA: CinemaConfig = {
+	on: false,
+	enableDeleteActions: false
+};
+
+export const DEFAULT_CONNECTIONS: ConnectionsConfig = {
+	sonarrUrl: '',
+	sonarrKey: '',
+	radarrUrl: '',
+	radarrKey: '',
+	plexUrl: '',
+	plexToken: '',
+	tmdbKey: '',
+	fetchboxUrl: '',
+	fetchboxPasscode: ''
 };
 
 export const DEFAULT_CLOCK: ClockConfig = {
@@ -283,7 +319,9 @@ export const DEFAULT_CONFIG: UserConfig = {
 	clock: DEFAULT_CLOCK,
 	weather: DEFAULT_WEATHER,
 	wallpaper: DEFAULT_WALLPAPER,
-	trending: DEFAULT_TRENDING
+	trending: DEFAULT_TRENDING,
+	cinema: DEFAULT_CINEMA,
+	connections: DEFAULT_CONNECTIONS
 };
 
 function stringList (value: unknown): string[] | null {
@@ -374,7 +412,10 @@ export function loadConfig (fromObject?: Record<string, unknown>): UserConfig {
 			},
 			trending: (() => {
 				const t: Partial<TrendingConfig> = parsed.trending || {};
-				const apiKey = typeof t.apiKey === 'string' ? t.apiKey.trim().slice(0, 64) : '';
+				const cx: Partial<ConnectionsConfig> = (parsed as {connections?: Partial<ConnectionsConfig>}).connections || {};
+				const cxTmdb = typeof cx.tmdbKey === 'string' ? cx.tmdbKey.trim().slice(0, 64) : '';
+				const legacyKey = typeof t.apiKey === 'string' ? t.apiKey.trim().slice(0, 64) : '';
+				const apiKey = cxTmdb || legacyKey;
 				const providers = Array.isArray(t.providers) ? t.providers.filter((id): id is number => typeof id === 'number' && ALL_PROVIDER_IDS.indexOf(id) !== -1) : ALL_PROVIDER_IDS;
 				const detail: TrendingDetail = t.detail === 'compact' || t.detail === 'minimal' ? t.detail : 'full';
 				return {
@@ -391,7 +432,27 @@ export function loadConfig (fromObject?: Record<string, unknown>): UserConfig {
 					panelWidth: ranged(t.panelWidth, 'trendWidth'),
 					panelOpacity: ranged(t.panelOpacity, 'trendPanelAlpha')
 				};
-			})()
+			})(),
+				cinema: {
+					on: !!(parsed.cinema && (parsed.cinema as Partial<CinemaConfig>).on),
+					enableDeleteActions: !!(parsed.cinema && (parsed.cinema as Partial<CinemaConfig>).enableDeleteActions)
+				},
+				connections: (() => {
+					const cx: Partial<ConnectionsConfig> = (parsed as {connections?: Partial<ConnectionsConfig>}).connections || {};
+					const str = (v: unknown, max: number) => typeof v === 'string' ? v.trim().slice(0, max) : '';
+					const tmdbFromTrending = typeof (parsed.trending as Partial<TrendingConfig> | undefined)?.apiKey === 'string' ? (parsed.trending as Partial<TrendingConfig>).apiKey!.trim().slice(0, 64) : '';
+					return {
+						sonarrUrl: str(cx.sonarrUrl, 200) || DEFAULT_CONNECTIONS.sonarrUrl,
+						sonarrKey: str(cx.sonarrKey, 64) || DEFAULT_CONNECTIONS.sonarrKey,
+						radarrUrl: str(cx.radarrUrl, 200) || DEFAULT_CONNECTIONS.radarrUrl,
+						radarrKey: str(cx.radarrKey, 64) || DEFAULT_CONNECTIONS.radarrKey,
+						plexUrl: str(cx.plexUrl, 200) || DEFAULT_CONNECTIONS.plexUrl,
+						plexToken: str(cx.plexToken, 128) || DEFAULT_CONNECTIONS.plexToken,
+						tmdbKey: str(cx.tmdbKey, 64) || tmdbFromTrending || DEFAULT_CONNECTIONS.tmdbKey,
+						fetchboxUrl: str(cx.fetchboxUrl, 200) || DEFAULT_CONNECTIONS.fetchboxUrl,
+						fetchboxPasscode: str(cx.fetchboxPasscode, 64) || DEFAULT_CONNECTIONS.fetchboxPasscode
+					};
+				})()
 		};
 	} catch {
 		return {...DEFAULT_CONFIG};

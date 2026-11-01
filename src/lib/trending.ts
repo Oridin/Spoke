@@ -11,6 +11,7 @@ export interface TrendingShow {
 	firstAir: string;
 	rating: number;
 	poster: string | null;
+	backdrop: string | null;
 	providers: ShowProvider[];
 }
 
@@ -72,6 +73,21 @@ export function posterUrl (path: string | null): string | null {
 	return 'https://image.tmdb.org/t/p/w92' + path;
 }
 
+export function posterUrlLarge (path: string | null): string | null {
+	if (!path) return null;
+	return 'https://image.tmdb.org/t/p/w185' + path;
+}
+
+export function posterUrlXL (path: string | null): string | null {
+	if (!path) return null;
+	return 'https://image.tmdb.org/t/p/w342' + path;
+}
+
+export function backdropUrl (path: string | null): string | null {
+	if (!path) return null;
+	return 'https://image.tmdb.org/t/p/w1280' + path;
+}
+
 export function parseTrendingList (json: string, mediaType: MediaType, limit: number): TrendingShow[] {
 	try {
 		const data = JSON.parse(json);
@@ -92,6 +108,7 @@ export function parseTrendingList (json: string, mediaType: MediaType, limit: nu
 						: (typeof r.first_air_date === 'string' ? r.first_air_date : ''),
 					rating: typeof r.vote_average === 'number' ? Math.round(r.vote_average * 10) / 10 : 0,
 					poster: typeof r.poster_path === 'string' ? r.poster_path : null,
+					backdrop: typeof r.backdrop_path === 'string' ? r.backdrop_path : null,
 					providers: []
 				};
 			})

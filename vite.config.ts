@@ -25,7 +25,8 @@ function classicScriptTag (): Plugin {
 			let entry = './assets/app.js';
 			html = html.replace(/<script type="module" crossorigin src="([^"]+)"><\/script>\s*/g, (_all, src: string) => { entry = src; return ''; });
 			const legacy = entry.replace(/app\.js$/, 'app.legacy.js');
-			const loader = `<script>document.write('<script src="' + (window.CSS && CSS.supports && CSS.supports('--a', '0') ? '${entry}' : '${legacy}') + '"><\\/script>');</script>`;
+			const bust = Date.now();
+			const loader = `<script>document.write('<script src="' + (window.CSS && CSS.supports && CSS.supports('--a', '0') ? '${entry}?v=${bust}' : '${legacy}?v=${bust}') + '"><\\/script>');</script>`;
 			return html
 				.replace('</body>', loader + '</body>')
 				.replace(/<link rel="stylesheet" crossorigin href="/g, '<link rel="stylesheet" href="');

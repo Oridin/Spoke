@@ -1,24 +1,36 @@
 import {exec} from './apps';
 
-const FETCHBOX = 'https://fetchbox-two.vercel.app';
 const COOKIE = '/tmp/fetchbox.cookie';
-const PASSCODE = '150277';
+const TMP_BODY = '/tmp/fetchbox-body.json';
+
+let fetchboxUrl = 'https://fetchbox-two.vercel.app';
+let fetchboxPasscode = '';
+
+export function configureFetchbox (url: string, passcode: string): void {
+	if (url) fetchboxUrl = url.replace(/\/+$/, '');
+	fetchboxPasscode = passcode;
+}
+
+function shellQuote (s: string): string {
+	return "'" + s.replace(/'/g, "'\\''") + "'";
+}
 
 function curlPost (path: string, body: string, timeout = 30000): Promise<string> {
-	const safeBody = body.replace(/'/g, "'\\''");
-	return exec(`curl -s -b ${COOKIE} -c ${COOKIE} -X POST -H 'Content-Type: application/json' -d '${safeBody}' '${FETCHBOX}${path}'`, timeout);
+	return exec('printf %s ' + shellQuote(body) + ' > ' + TMP_BODY, 5000)
+		.then(() => exec(`curl -s -b ${COOKIE} -c ${COOKIE} -X POST -H 'Content-Type: application/json' -d @${TMP_BODY} ${shellQuote(fetchboxUrl + path)}`, timeout));
 }
 
 function login (): Promise<void> {
-	return curlPost('/api/login', JSON.stringify({passcode: PASSCODE})).then(() => undefined);
+	if (!fetchboxPasscode) return Promise.reject(new Error('Fetchbox passcode not set — enter it in Settings → Connections'));
+	return curlPost('/api/login', JSON.stringify({passcode: fetchboxPasscode})).then(() => undefined);
 }
 
-interface SearchOption { fid: string; filename: string; name?: string; size?: number }
-interface SearchMovie { title: string; year?: number; exact?: boolean; options: SearchOption[] }
-interface SearchSeason { label: string; pack?: SearchOption; episodes: SearchOption[] }
-interface SearchShow { title: string; seasons: SearchSeason[] }
-interface SearchResult { movies: SearchMovie[]; shows: SearchShow[]; preselect: string[] }
-interface GrabItem { fid: string; filename: string; name: string }
+export interface SearchOption { fid: string; filename: string; name?: string; size?: number }
+export interface SearchMovie { title: string; year?: number; exact?: boolean; options: SearchOption[] }
+export interface SearchSeason { label: string; pack?: SearchOption; episodes: SearchOption[] }
+export interface SearchShow { title: string; seasons: SearchSeason[] }
+export interface SearchResult { movies: SearchMovie[]; shows: SearchShow[]; preselect: string[] }
+export interface GrabItem { fid: string; filename: string; name: string }
 interface GrabResult { name: string; hash?: string; already?: boolean; error?: string }
 
 function findByFid (result: SearchResult, fid: string): GrabItem | null {
@@ -72,6 +84,25 @@ function pickBest (result: SearchResult, mediaType: string): GrabItem[] {
 }
 
 export interface SeedboxResult { grabbed: string[]; errors: string[] }
+
+export function searchSeedbox (name: string, year: string): Promise<SearchResult> {
+	const query = year ? name + ' ' + year : name;
+	return login()
+		.then(() => curlPost('/api/search', JSON.stringify({query, browse: true})))
+		.then((text) => JSON.parse(text) as SearchResult);
+}
+
+export function grabFromSeedbox (items: GrabItem[]): Promise<SeedboxResult> {
+	return login()
+		.then(() => curlPost('/api/grab', JSON.stringify({items})))
+		.then((grabText) => {
+			const r = JSON.parse(grabText) as {results: GrabResult[]};
+			return {
+				grabbed: r.results.filter((i) => !i.error).map((i) => i.name),
+				errors: r.results.filter((i) => i.error).map((i) => i.name + ': ' + i.error)
+			};
+		});
+}
 
 export function sendToSeedbox (name: string, year: string, mediaType: string): Promise<SeedboxResult> {
 	const query = year ? name + ' ' + year : name;

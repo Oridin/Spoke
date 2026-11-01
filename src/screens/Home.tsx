@@ -14,7 +14,8 @@ import {FONT, LAYOUT} from '../theme/tokens';
 import {varScope} from '../lib/cssvars';
 import {TrendingSidebar} from '../components/TrendingSidebar';
 import type {TrendingData} from '../lib/trending';
-import type {TrendingConfig} from '../lib/storage';
+import type {TrendingConfig, CinemaConfig} from '../lib/storage';
+import {CinemaPanel} from './Cinema';
 
 export interface Appearance {
 	/** icon size, % of the standard size */
@@ -69,6 +70,29 @@ interface Props {
 	onLaunch: (appId: string) => void;
 	/** send a show to the seedbox */
 	onSeedbox: (name: string, year: string, mediaType: string) => void;
+	/** cinema mode config (when on, replaces clock and trending sidebars) */
+	cinemaConfig?: CinemaConfig;
+	/** toast feedback for the cinema download panel */
+	onToast: (msg: string, kind?: 'info' | 'error') => void;
+	/** TMDB API key for Browse tab */
+	apiKey?: string;
+	/** whether to allow shell commands (webOS) */
+	allowShell?: boolean;
+	/** user's streaming provider IDs for filtering */
+	providerIds?: number[];
+	/** Plex server URL for My Server tab */
+	plexUrl?: string;
+	/** Plex auth token for My Server tab */
+	plexToken?: string;
+	/** whether hidden libraries are unlocked */
+	showHidden?: boolean;
+	/** lock the hidden libraries again */
+	onRelockHidden?: () => void;
+	sonarrUrl?: string;
+	sonarrKey?: string;
+	radarrUrl?: string;
+	radarrKey?: string;
+	enableDeleteActions?: boolean;
 }
 
 /** OLED shift: the offset (px at 1080p) of the clock and the apps, changed once a minute through a small cycle. null = off. */
@@ -87,7 +111,9 @@ function useShift (on: boolean): {x: number; y: number} | null {
 /** The home screen: a clock and the tiles along the bottom, in one row or two.
  *  Left/Right move along a row, Up/Down change row (two rows), OK opens, holding OK opens the app's menu.
  *  Back opens the Recent apps panel. */
-export function Home ({items, timeFormat, appearance, active, paused, onActivate, onLongPress, onBack, wake, focus, weather, trending, trendingConfig, installedAppIds, onLaunch, onSeedbox}: Props) {
+export function Home ({items, timeFormat, appearance, active, paused, onActivate, onLongPress, onBack, wake, focus, weather, trending, trendingConfig, installedAppIds, onLaunch, onSeedbox, cinemaConfig, onToast, apiKey, allowShell, providerIds, plexUrl, plexToken, showHidden, onRelockHidden, sonarrUrl, sonarrKey, radarrUrl, radarrKey, enableDeleteActions}: Props) {
+	const cinemaOn = !!(cinemaConfig && cinemaConfig.on && trending && trending.shows.length + trending.movies.length > 0);
+	const [cinemaActive, setCinemaActive] = useState(false);
 	const now = useClock(paused);
 	const [position, setPosition] = useState<RowsPosition>(initialPosition);
 	const sizes = splitRows(items.length, appearance.rows);
@@ -145,18 +171,26 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 	}, [focus && focus.seq]);
 
 	const handleKey = useCallback((key: NavKey): boolean => {
-		if (quietRef.current) return true;                    // the key that wakes the apps does nothing else
-		// functional updates, so quick repeated presses never act on a stale position
+		if (quietRef.current) return true;
+		if (key === 'up' && cinemaOn) {
+			setPosition((p) => {
+				const cur = clampPosition(sizes, p);
+				if (cur.row === 0) { setCinemaActive(true); return p; }
+				return movePosition(sizes, p, key);
+			});
+			return true;
+		}
 		if (key === 'left' || key === 'right' || key === 'up' || key === 'down') setPosition((p) => movePosition(sizes, p, key));
-		else if (key === 'back') onBack();        // Back opens the Recent apps panel
-		return true;            // OK is handled by useOkPress below (press vs hold)
-	}, [sizeKey, onBack]);
+		else if (key === 'back') onBack();
+		return true;
+	}, [sizeKey, onBack, cinemaOn]);
 
-	useKeys(handleKey, active);
+	const rowsActive = active && !(cinemaOn && cinemaActive);
+	useKeys(handleKey, rowsActive);
 	useOkPress({
 		onPress: () => { if (selectedItem && !quietRef.current) onActivate(selectedItem); },
 		onLongPress: () => { if (selectedItem && onLongPress && !quietRef.current) onLongPress(selectedItem); }
-	}, active);
+	}, rowsActive);
 
 	// The row's sizes are set on the row itself (not on :root), so the Settings grid keeps its own.
 	const scale = appearance.iconScale / 100;
@@ -172,13 +206,19 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 	});
 	const rowStyle = [`left:${appearance.sideMargin}px`, `right:${appearance.sideMargin}px`, `bottom:${appearance.bottomMargin}px`, rowVars.css].filter(Boolean).join(';');
 	const shiftVars = varScope('shift', shift ? {'--shift-x': `${shift.x}px`, '--shift-y': `${shift.y}px`} : {});
-	const classes = [rowVars.cls, 'rows', !appearance.showLabels && 'rows--no-labels', sizes.length > 1 && 'rows--multi', appearance.iconOpacity < 100 && 'rows--dim', quiet && 'rows--quiet', labelColorValue(appearance.labelColor) && 'rows--label-color', appearance.tileShape !== 'rounded' && `rows--shape-${appearance.tileShape}`].filter(Boolean).join(' ');
+	const classes = [rowVars.cls, 'rows', !appearance.showLabels && 'rows--no-labels', sizes.length > 1 && 'rows--multi', appearance.iconOpacity < 100 && 'rows--dim', quiet && 'rows--quiet', labelColorValue(appearance.labelColor) && 'rows--label-color', appearance.tileShape !== 'rounded' && `rows--shape-${appearance.tileShape}`, cinemaOn && 'rows--cinema'].filter(Boolean).join(' ');
 
 	return (
 		<div class={`screen${active ? '' : ' screen--away'}${shift ? ' screen--shift' : ''}${shiftVars.cls ? ' ' + shiftVars.cls : ''}`} style={shiftVars.css || undefined}>
-			<Clock now={now} format={timeFormat} config={appearance.clock} weather={weather} />
-			{trending && trendingConfig && trending.shows.length > 0 && <TrendingSidebar title="Trending Shows" shows={trending.shows.slice(0, trendingConfig.maxShows)} side="left" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} />}
-			{trending && trendingConfig && trending.movies.length > 0 && <TrendingSidebar title="Trending Movies" shows={trending.movies.slice(0, trendingConfig.maxMovies)} side="right" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} />}
+			{cinemaOn && trending ? (
+				<CinemaPanel trending={trending} installedAppIds={installedAppIds} onLaunch={onLaunch} onToast={onToast} active={active && cinemaActive} onExitDown={() => setCinemaActive(false)} rowAreaPx={appearance.bottomMargin + tileSize + (appearance.showLabels ? 32 : 8) + 24} apiKey={apiKey || ''} allowShell={!!allowShell} providerIds={providerIds || []} plexUrl={plexUrl || ''} plexToken={plexToken || ''} showHidden={!!showHidden} onRelockHidden={onRelockHidden || (() => {})} sonarrUrl={sonarrUrl || ''} sonarrKey={sonarrKey || ''} radarrUrl={radarrUrl || ''} radarrKey={radarrKey || ''} enableDeleteActions={!!enableDeleteActions} />
+			) : (
+				<>
+					<Clock now={now} format={timeFormat} config={appearance.clock} weather={weather} />
+					{trending && trendingConfig && trending.shows.length > 0 && <TrendingSidebar title="Trending Shows" shows={trending.shows.slice(0, trendingConfig.maxShows)} side="left" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} />}
+					{trending && trendingConfig && trending.movies.length > 0 && <TrendingSidebar title="Trending Movies" shows={trending.movies.slice(0, trendingConfig.maxMovies)} side="right" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} />}
+				</>
+			)}
 			<div class={classes} style={rowStyle}>
 				{sizes.map((size, r) => {
 					const start = offsets[r];
@@ -186,7 +226,7 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 						<Row
 							key={r}
 							items={items.slice(start, start + size)}
-							focused={r === at.row}
+							focused={!cinemaActive && r === at.row}
 							selected={at.cols[r]}
 							onSelect={(col) => setPosition({row: r, cols: at.cols.map((c, i) => (i === r ? col : c))})}
 							onActivate={(col) => onActivate(items[start + col])}

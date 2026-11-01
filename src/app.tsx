@@ -20,7 +20,8 @@ import {keepKnownIcons, sameApps} from './lib/appcache';
 import type {TimeFormat} from './lib/clock';
 import {listInputs, MOCK_INPUTS, type InputSource} from './lib/inputs';
 import {launchApp, launchLgHome, launchSystemSettings} from './lib/launch';
-import {sendToSeedbox} from './lib/seedbox';
+import {configureFetchbox, sendToSeedbox} from './lib/seedbox';
+import {testSonarr, testRadarr, testPlex, testTmdb, testFetchbox} from './lib/arrapi';
 import {isWebOS} from './lib/luna';
 import {hidePointerOnForeground} from './lib/pointer';
 import {startLogFile, writeReport, previousRunLines} from './lib/logfile';
@@ -54,10 +55,14 @@ import {TrendingList} from './screens/TrendingList';
 import {ApiKeyEntry} from './screens/ApiKeyEntry';
 
 import {SyncSetup} from './screens/SyncSetup';
+import {ConnectionEntry} from './screens/ConnectionEntry';
+import {PinOverlay} from './components/PinOverlay';
 
-type Screen = 'home' | 'settings' | 'picker' | 'cities' | 'source' | 'iconpicker' | 'trending' | 'apikey' | 'sync';
+const PROVIDER_IDS = [8, 9, 337, 15, 1899, 350, 531, 386];
 
-const TAB = {apps: 'apps', sources: 'sources', look: 'look', clock: 'clock', weather: 'weather', wallpaper: 'wallpaper', trending: 'trending', options: 'options', debug: 'debug', tests: 'tests'} as const;
+type Screen = 'home' | 'settings' | 'picker' | 'cities' | 'source' | 'iconpicker' | 'trending' | 'apikey' | 'sync' | 'connentry';
+
+const TAB = {apps: 'apps', sources: 'sources', look: 'look', clock: 'clock', weather: 'weather', wallpaper: 'wallpaper', trending: 'trending', cinema: 'cinema', connections: 'connections', options: 'options', debug: 'debug', tests: 'tests'} as const;
 const MISC = {lgHome: 'lg-home', settings: 'settings', system: 'system-settings', trending: 'trending'} as const;
 
 const MISC_TILES: TileModel[] = [
@@ -76,6 +81,7 @@ export function App () {
 	const listInfo = useRef<{source: string; count: number; at: number} | null>(null);
 	const weatherNote = useRef('off');
 	const [editKey, setEditKey] = useState<string | null>(null);      // the source being edited (Settings → Apps or Sources → hold OK on a tile)
+	const [connEntry, setConnEntry] = useState<{id: string; title: string; hint: string; current: string; placeholder: string; maxLength: number} | null>(null);
 	const [versions, setVersions] = useState<Versions>({});          // shown at the bottom right of Settings (read when Settings opens)
 	const [probe, setProbe] = useState<ProbeState>({});            // Tests tab (probe builds only): answers shown in the rows
 	const [asleep, setAsleep] = useState(document.hidden);
@@ -106,6 +112,8 @@ export function App () {
 	const closedAt = useRef(0);
 	const [systemInfo, setSystemInfo] = useState<SystemInfo>({homeHook: null});
 	const tvFormat = useTimeFormat();
+	const [showHidden, setShowHidden] = useState(false);
+	const [pinOverlay, setPinOverlay] = useState<{mode: 'verify' | 'change'; action: string} | null>(null);
 
 	// With the hand-over helper on, note in its log how long this launcher took to show its first screen.
 	useEffect(() => {
@@ -140,6 +148,7 @@ export function App () {
 		setRootVars({'--fade-display': a > 0 ? 'block' : 'none', '--fade-height': `${config.fadeHeight}%`, '--fade-a': String(a), '--fade-b': (a * 0.55).toFixed(3), '--fade-c': (a * 0.2).toFixed(3)});
 	}, [config.fadeStrength, config.fadeHeight]);
 	useEffect(() => { applyTheme(config.theme); applyBackground(config.background, THEMES[config.theme]); }, [config.theme, config.background]);
+	useEffect(() => { configureFetchbox(config.connections.fetchboxUrl, config.connections.fetchboxPasscode); }, [config.connections.fetchboxUrl, config.connections.fetchboxPasscode]);
 
 	useEffect(() => { document.documentElement.classList.toggle('look-minimal', config.minimal); }, [config.minimal]);
 
@@ -262,7 +271,7 @@ export function App () {
 				}
 				return hidden;
 			});
-			if (hidden) { setScreen('home'); setMenu(null); setRecents(false); }
+			if (hidden) { setScreen('home'); setMenu(null); setRecents(false); setShowHidden(false); }
 		};
 		const onVisibility = () => sync('event');
 		document.addEventListener('visibilitychange', onVisibility);
@@ -580,11 +589,13 @@ export function App () {
 		{id: TAB.clock, label: 'Clock', noun: '', items: [], shown: [], options: optionsFor('clock', config)},
 		...(WEATHER_ENABLED ? [{id: TAB.weather, label: 'Weather', noun: '', items: [], shown: [], options: optionsFor('weather', config)}] : []),
 		...(TRENDING_ENABLED ? [{id: TAB.trending, label: 'Trending', noun: '', items: [], shown: [], options: optionsFor('trending', config)}] : []),
+		...(TRENDING_ENABLED ? [{id: TAB.cinema, label: 'Cinema', noun: '', items: [], shown: [], options: optionsFor('cinema', config).map(function (o) { if (o.id === 'showHidden') return {...o, valueText: showHidden ? 'On' : 'Off'}; return o; })}] : []),
 		{id: TAB.wallpaper, label: 'Wallpaper', noun: '', items: [], shown: [], options: optionsFor('wallpaper', config)},
+		{id: TAB.connections, label: 'Connections', noun: '', items: [], shown: [], options: optionsFor('connections', config)},
 		{id: TAB.options, label: 'Options', noun: '', items: [], shown: [], options: optionsFor('options', config, {...systemInfo, tvInput})},
 		...(config.showDebug ? [{id: TAB.debug, label: 'Debug', noun: '', items: [], shown: [], pages: debugPagesNow}] : []),
 		...(PROBE_ENABLED && config.showDebug ? [{id: TAB.tests, label: 'Tests', noun: '', items: [], shown: [], options: probeOptions(probe)}] : [])
-	], [apps, inputs, shownApps, shownInputs, config, systemInfo, tvInput, probe, debugPagesNow]);
+	], [apps, inputs, shownApps, shownInputs, config, systemInfo, tvInput, probe, debugPagesNow, showHidden]);
 
 	const editedSource = editKey ? inputs.filter((i) => i.appId === editKey)[0] : undefined;
 	const editedApp = editKey && !editedSource ? apps.filter((a) => a.id === editKey)[0] : undefined;
@@ -676,12 +687,51 @@ export function App () {
 		const blocked = disabledReason(optionId, systemInfo);
 		if (blocked) { showToast(blocked, 'error'); return; }
 		if (optionId === 'weatherOn' && !config.weather.city) { showToast('Choose a city first'); setScreen('cities'); return; }
-		if (optionId === 'trendingOn' && !config.trending.apiKey) { showToast('Enter a TMDB API key first'); setScreen('apikey'); return; }
+		if (optionId === 'trendingOn' && !config.trending.apiKey) { showToast('Enter a TMDB API key in Settings → Connections first'); return; }
 		if (optionId === 'wallpaper' && press === 'ok') { setScreen('picker'); return; }       // OK: pick a picture or folder; ← → step the built-in backgrounds
 		if (pref.kind === 'action') {
 			if (optionId === 'weatherCity') setScreen('cities');
 			else if (optionId === 'trendingApiKey') setScreen('apikey');
 			else if (optionId === 'settingsSync') setScreen('sync');
+			else if (optionId === 'connSonarrUrl') { setConnEntry({id: 'sonarrUrl', title: 'Sonarr URL', hint: 'The base URL of your Sonarr instance, e.g. https://user.host.bysh.me/sonarr', current: config.connections.sonarrUrl, placeholder: 'https://…/sonarr', maxLength: 200}); setScreen('connentry'); }
+			else if (optionId === 'connSonarrKey') { setConnEntry({id: 'sonarrKey', title: 'Sonarr API Key', hint: 'Found in Sonarr → Settings → General → API Key.', current: config.connections.sonarrKey, placeholder: 'Paste your Sonarr API key', maxLength: 64}); setScreen('connentry'); }
+			else if (optionId === 'connTestSonarr') {
+				if (!config.connections.sonarrUrl || !config.connections.sonarrKey) { showToast('Enter the Sonarr URL and API key first'); return; }
+				showToast('Testing Sonarr…');
+				testSonarr(config.connections.sonarrUrl, config.connections.sonarrKey).then((r) => showToast(r.ok ? r.message : 'Sonarr: ' + r.message, r.ok ? 'info' : 'error'));
+			}
+			else if (optionId === 'connRadarrUrl') { setConnEntry({id: 'radarrUrl', title: 'Radarr URL', hint: 'The base URL of your Radarr instance, e.g. https://user.host.bysh.me/radarr', current: config.connections.radarrUrl, placeholder: 'https://…/radarr', maxLength: 200}); setScreen('connentry'); }
+			else if (optionId === 'connRadarrKey') { setConnEntry({id: 'radarrKey', title: 'Radarr API Key', hint: 'Found in Radarr → Settings → General → API Key.', current: config.connections.radarrKey, placeholder: 'Paste your Radarr API key', maxLength: 64}); setScreen('connentry'); }
+			else if (optionId === 'connTestRadarr') {
+				if (!config.connections.radarrUrl || !config.connections.radarrKey) { showToast('Enter the Radarr URL and API key first'); return; }
+				showToast('Testing Radarr…');
+				testRadarr(config.connections.radarrUrl, config.connections.radarrKey).then((r) => showToast(r.ok ? r.message : 'Radarr: ' + r.message, r.ok ? 'info' : 'error'));
+			}
+			else if (optionId === 'connPlexUrl') { setConnEntry({id: 'plexUrl', title: 'Plex URL', hint: 'The URL of your Plex server. An https URL is recommended — http will work but is not encrypted.', current: config.connections.plexUrl, placeholder: 'http://…:32400', maxLength: 200}); setScreen('connentry'); }
+			else if (optionId === 'connPlexToken') { setConnEntry({id: 'plexToken', title: 'Plex Token', hint: 'Your X-Plex-Token. In Plex, open any media → Get Info → View XML: the token is in the URL.', current: config.connections.plexToken, placeholder: 'Paste your Plex token', maxLength: 128}); setScreen('connentry'); }
+			else if (optionId === 'connTestPlex') {
+				if (!config.connections.plexUrl || !config.connections.plexToken) { showToast('Enter the Plex URL and token first'); return; }
+				showToast('Testing Plex…');
+				testPlex(config.connections.plexUrl, config.connections.plexToken).then((r) => showToast(r.ok ? r.message : 'Plex: ' + r.message, r.ok ? 'info' : 'error'));
+			}
+			else if (optionId === 'connTmdbKey') { setConnEntry({id: 'tmdbKey', title: 'TMDB API Key', hint: 'A free key from themoviedb.org: sign up, then go to Account → Settings → API. Copy the "API Key (v3 auth)" value.', current: config.connections.tmdbKey, placeholder: 'Paste your TMDB API key', maxLength: 64}); setScreen('connentry'); }
+			else if (optionId === 'connTestTmdb') {
+				if (!config.connections.tmdbKey) { showToast('Enter a TMDB API key first'); return; }
+				showToast('Testing TMDB…');
+				testTmdb(config.connections.tmdbKey).then((r) => showToast(r.ok ? r.message : 'TMDB: ' + r.message, r.ok ? 'info' : 'error'));
+			}
+			else if (optionId === 'connFetchboxUrl') { setConnEntry({id: 'fetchboxUrl', title: 'Fetchbox URL', hint: 'The URL of your Fetchbox instance. Change only if you host your own.', current: config.connections.fetchboxUrl, placeholder: 'https://fetchbox-two.vercel.app', maxLength: 200}); setScreen('connentry'); }
+			else if (optionId === 'connFetchboxPasscode') { setConnEntry({id: 'fetchboxPasscode', title: 'Fetchbox Passcode', hint: 'The passcode for Fetchbox login.', current: config.connections.fetchboxPasscode, placeholder: 'Enter passcode', maxLength: 64}); setScreen('connentry'); }
+			else if (optionId === 'connTestFetchbox') {
+				if (!config.connections.fetchboxUrl || !config.connections.fetchboxPasscode) { showToast('Enter the Fetchbox URL and passcode first'); return; }
+				showToast('Testing Fetchbox…');
+				testFetchbox(config.connections.fetchboxUrl, config.connections.fetchboxPasscode).then((r) => showToast(r.ok ? r.message : 'Fetchbox: ' + r.message, r.ok ? 'info' : 'error'));
+			}
+			else if (optionId === 'showHidden') {
+				if (showHidden) { setShowHidden(false); showToast('Hidden libraries locked'); }
+				else { setPinOverlay({mode: 'verify', action: 'showHidden'}); }
+			}
+			else if (optionId === 'changePin') { setPinOverlay({mode: 'change', action: 'changePin'}); }
 			else if (optionId === 'resetLook') { updateConfig(resetLook(config)); showToast('Look and clock reset'); }
 			else if (optionId === 'takeover') {
 				const refresh = () => getTakeoverStatus().then((takeover) => setSystemInfo((previous) => ({...previous, takeover})));
@@ -832,7 +882,7 @@ export function App () {
 			{wallpaperOn && natureShow && <PhotoShow intervalSec={config.wallpaper.intervalSec} shuffle={config.wallpaper.shuffle} paused={asleep} />}
 			{wallpaperOn && !natureShow && <Wallpaper config={config.wallpaper} opacity={config.wallpaperOpacity} onProblem={(text) => showToast(text, 'error')} />}
 			{/* Home stays mounted under the other screens so it keeps its focus position. */}
-			<Home items={homeItems} timeFormat={timeFormat} appearance={appearance} active={screen === 'home' && !menu && !recents} paused={asleep} onActivate={onActivate} onLongPress={onLongPress} onBack={openRecents} wake={wakes} focus={focus} weather={weatherLine} trending={trOn ? trendingData : undefined} trendingConfig={trOn ? config.trending : undefined} installedAppIds={apps.map((a) => a.id)} onLaunch={onTrendingLaunch} onSeedbox={onSeedbox} />
+			<Home items={homeItems} timeFormat={timeFormat} appearance={appearance} active={screen === 'home' && !menu && !recents && !pinOverlay} paused={asleep} onActivate={onActivate} onLongPress={onLongPress} onBack={openRecents} wake={wakes} focus={focus} weather={weatherLine} trending={trOn ? trendingData : undefined} trendingConfig={trOn ? config.trending : undefined} installedAppIds={apps.map((a) => a.id)} onLaunch={onTrendingLaunch} onSeedbox={onSeedbox} cinemaConfig={trOn ? config.cinema : undefined} onToast={showToast} apiKey={config.connections.tmdbKey} allowShell={isWebOS()} providerIds={PROVIDER_IDS} plexUrl={config.connections.plexUrl} plexToken={config.connections.plexToken} showHidden={showHidden} onRelockHidden={() => setShowHidden(false)} sonarrUrl={config.connections.sonarrUrl} sonarrKey={config.connections.sonarrKey} radarrUrl={config.connections.radarrUrl} radarrKey={config.connections.radarrKey} enableDeleteActions={config.cinema.enableDeleteActions} />
 			{recents && screen === 'home' && <Recents icons={recentIcons} width={config.recentsW} height={config.recentsH} onClose={closeRecents} onToast={showToast} />}
 			{menu && <AppMenu title={menu.title} moves={menuMoves} hideDetail={menu.app ? 'You can add it back in Settings → Apps' : 'You can add it back in Settings → Sources'} showUninstall={!!menu.app} blockedReason={menuBlocked} onMove={(action) => moveTile(menu.key, action)} onHide={() => hideTile(menu)} onUninstall={() => { if (menu.app) removeApp(menu.app); }} onClose={() => setMenu(null)} />}
 			{/* Settings stays mounted under the picker so it keeps its tab. */}
@@ -865,8 +915,17 @@ export function App () {
 			{screen === 'picker' && <Picker onChoose={onChooseWallpaper} onClose={() => setScreen('settings')} />}
 			{WEATHER_ENABLED && screen === 'cities' && <CityPicker allowShell={isWebOS()} onChoose={onChooseCity} onClose={() => setScreen('settings')} />}
 			{TRENDING_ENABLED && screen === 'trending' && <TrendingList shows={trendingData.shows.concat(trendingData.movies)} installedAppIds={apps.map((a) => a.id)} onLaunch={(appId, name) => { launchApp(appId).catch(() => showToast(`Couldn't open the app for ${name}`, 'error')); }} onClose={() => setScreen('home')} />}
-			{TRENDING_ENABLED && screen === 'apikey' && <ApiKeyEntry current={config.trending.apiKey} onSave={(key) => { updateConfig({...config, trending: {...config.trending, apiKey: key, on: true}}); setScreen('settings'); showToast('API key saved. Trending is on'); }} onClose={() => setScreen('settings')} />}
+			{TRENDING_ENABLED && screen === 'apikey' && <ApiKeyEntry current={config.trending.apiKey} onSave={(key) => { updateConfig({...config, trending: {...config.trending, apiKey: key, on: true}, connections: {...config.connections, tmdbKey: key}}); setScreen('settings'); showToast('API key saved. Trending is on'); }} onClose={() => setScreen('settings')} />}
 			{screen === 'sync' && <SyncSetup onSync={(s) => { syncRef.current = s; setConfig(loadConfig()); setScreen('settings'); }} onClose={() => setScreen('settings')} onToast={showToast} />}
+			{screen === 'connentry' && connEntry && <ConnectionEntry title={connEntry.title} hint={connEntry.hint} current={connEntry.current} placeholder={connEntry.placeholder} maxLength={connEntry.maxLength} onSave={(value) => {
+				const key = connEntry.id as keyof typeof config.connections;
+				const next = {...config, connections: {...config.connections, [key]: value}};
+				if (key === 'tmdbKey') next.trending = {...next.trending, apiKey: value};
+				updateConfig(next);
+				setScreen('settings');
+				showToast(value ? connEntry.title + ' saved' : connEntry.title + ' cleared');
+			}} onClose={() => setScreen('settings')} />}
+			{pinOverlay && <PinOverlay mode={pinOverlay.mode} active={!asleep} onSuccess={() => { if (pinOverlay.action === 'showHidden') setShowHidden(true); setPinOverlay(null); }} onCancel={() => setPinOverlay(null)} onToast={showToast} />}
 			<Toast message={toast} />
 		</>
 	);

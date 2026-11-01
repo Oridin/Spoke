@@ -4,7 +4,7 @@
     {
       "name": "spoke-dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "5174"],
+      "runtimeArgs": ["vite", "--port", "5174", "--host"],
       "port": 5174
     }
   ]

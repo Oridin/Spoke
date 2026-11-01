@@ -40,7 +40,11 @@ const ICON_DIR = 'icons/apps/';
 /** `liveOnly`: when the Homebrew list can't be read, fail instead of falling back to the (smaller) catalogue.
  *  Used when a saved full list is already on screen, which must not be replaced by the catalogue. */
 export function listApps (liveOnly: boolean = false, useTv: boolean = false): Promise<AppList> {
-	if (!isWebOS()) return Promise.resolve({apps: catalogEntries(APP_CATALOG), source: 'catalog'});
+	if (!isWebOS()) {
+		const all = catalogEntries(APP_CATALOG);
+		const seen = new Set<string>();
+		return Promise.resolve({apps: all.filter(a => { if (seen.has(a.title)) return false; seen.add(a.title); return true; }), source: 'catalog'});
+	}
 	const catalog = () => listViaCatalog().then((apps): AppList => ({apps, source: 'catalog'}));
 	const brew = listViaHomebrew().then((apps): AppList => ({apps, source: 'homebrew'}));
 	// EXPERIMENTAL, no root: when the Homebrew list is not available, ask the TV itself (ssap.ts), if the person turned that on

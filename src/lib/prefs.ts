@@ -19,7 +19,7 @@ import {lastFailure, rootState, type RootState} from './failure';
 import type {LogoState} from './system';
 import type {TakeoverStatus} from './takeovercmd';
 
-export type PrefTab = 'look' | 'clock' | 'weather' | 'wallpaper' | 'trending' | 'options';
+export type PrefTab = 'look' | 'clock' | 'weather' | 'wallpaper' | 'trending' | 'cinema' | 'connections' | 'options';
 
 /** Facts about the TV (not user settings) that some rows display. */
 export interface SystemInfo {
@@ -338,7 +338,113 @@ const TRENDING_PREFS: Pref[] = [
 		'trendPanelAlpha', (c) => c.trending.panelOpacity, (c, v) => ({...c, trending: {...c.trending, panelOpacity: v}}), (v) => `${v}%`)
 ];
 
-export const PREFS: Pref[] = (WEATHER_ENABLED ? BASE_PREFS.concat(WEATHER_PREFS) : BASE_PREFS).concat(TRENDING_ENABLED ? TRENDING_PREFS : []);
+const CINEMA_PREFS: Pref[] = [
+	toggle('cinemaOn', 'cinema', 'Cinema mode', 'Replaces the clock and trending sidebars with a cinema-style media hub above the app tiles. Shows trending content with hero banners and poster cards. Needs trending to be on.',
+		(c) => c.cinema.on, (c, v) => ({...c, cinema: {...c.cinema, on: v}})),
+	{
+		id: 'hiddenLibraries', tab: 'cinema', label: 'Hidden libraries', kind: 'action',
+		description: 'Libraries hidden behind the PIN lock. Currently: FTastic. Stored on this TV only, not synced.',
+		text: () => {
+			try { var d = JSON.parse(localStorage.getItem('spoke-pin') || '{}'); return (d.hiddenSections || []).length > 0 ? (d.hiddenSections || []).length + ' hidden' : 'None'; } catch { return 'None'; }
+		}
+	},
+	{
+		id: 'showHidden', tab: 'cinema', label: 'Show hidden libraries', kind: 'action',
+		description: 'Unlock the hidden libraries in My Server. Requires the PIN. Re-locks when you leave My Server or restart.',
+		text: () => 'Off'
+	},
+	{
+		id: 'changePin', tab: 'cinema', label: 'Change PIN', kind: 'action',
+		description: 'Change the PIN that protects the hidden libraries. Requires the current PIN first.',
+		text: () => 'Change'
+	},
+	toggle('enableDeleteActions', 'cinema', 'Delete actions', 'Allow removing titles and their files from the library via the Watchlist detail panel. Off by default as a safety measure.',
+		(c) => c.cinema.enableDeleteActions, (c, v) => ({...c, cinema: {...c.cinema, enableDeleteActions: v}})),
+];
+
+function masked (s: string, show: number): string {
+	if (!s) return 'Not set';
+	return 'Set (' + s.slice(0, show) + '…)';
+}
+
+const CONNECTIONS_PREFS: Pref[] = [
+	{
+		id: 'connSonarrUrl', tab: 'connections', label: 'Sonarr URL', kind: 'action',
+		description: 'The base URL of your Sonarr instance, e.g. https://user.host.bysh.me/sonarr',
+		text: (c) => c.connections.sonarrUrl || 'Not set'
+	},
+	{
+		id: 'connSonarrKey', tab: 'connections', label: 'Sonarr API key', kind: 'action',
+		description: 'Found in Sonarr → Settings → General → API Key.',
+		text: (c) => masked(c.connections.sonarrKey, 4)
+	},
+	{
+		id: 'connTestSonarr', tab: 'connections', label: 'Test Sonarr', kind: 'action',
+		description: 'Checks that Spoke can reach Sonarr with the URL and key above.',
+		text: () => 'Test'
+	},
+	{
+		id: 'connRadarrUrl', tab: 'connections', label: 'Radarr URL', kind: 'action',
+		description: 'The base URL of your Radarr instance, e.g. https://user.host.bysh.me/radarr',
+		text: (c) => c.connections.radarrUrl || 'Not set'
+	},
+	{
+		id: 'connRadarrKey', tab: 'connections', label: 'Radarr API key', kind: 'action',
+		description: 'Found in Radarr → Settings → General → API Key.',
+		text: (c) => masked(c.connections.radarrKey, 4)
+	},
+	{
+		id: 'connTestRadarr', tab: 'connections', label: 'Test Radarr', kind: 'action',
+		description: 'Checks that Spoke can reach Radarr with the URL and key above.',
+		text: () => 'Test'
+	},
+	{
+		id: 'connPlexUrl', tab: 'connections', label: 'Plex URL', kind: 'action',
+		description: 'The URL of your Plex server, e.g. http://user.host.bysh.me:5734. An https URL is recommended.',
+		text: (c) => {
+			const url = c.connections.plexUrl;
+			if (!url) return 'Not set';
+			return url.indexOf('http://') === 0 ? url + '  ⚠ not https' : url;
+		}
+	},
+	{
+		id: 'connPlexToken', tab: 'connections', label: 'Plex token', kind: 'action',
+		description: 'Your X-Plex-Token. Find it in Plex → any media → Get Info → View XML: the token is in the URL.',
+		text: (c) => masked(c.connections.plexToken, 4)
+	},
+	{
+		id: 'connTestPlex', tab: 'connections', label: 'Test Plex', kind: 'action',
+		description: 'Checks that Spoke can reach your Plex server.',
+		text: () => 'Test'
+	},
+	{
+		id: 'connTmdbKey', tab: 'connections', label: 'TMDB API key', kind: 'action',
+		description: 'A free key from themoviedb.org (Account → Settings → API). Used for trending and browse.',
+		text: (c) => masked(c.connections.tmdbKey, 4)
+	},
+	{
+		id: 'connTestTmdb', tab: 'connections', label: 'Test TMDB', kind: 'action',
+		description: 'Checks that the TMDB API key works.',
+		text: () => 'Test'
+	},
+	{
+		id: 'connFetchboxUrl', tab: 'connections', label: 'Fetchbox URL', kind: 'action',
+		description: 'The URL of your Fetchbox instance. Change only if you host your own.',
+		text: (c) => c.connections.fetchboxUrl || 'Not set'
+	},
+	{
+		id: 'connFetchboxPasscode', tab: 'connections', label: 'Fetchbox passcode', kind: 'action',
+		description: 'The passcode for Fetchbox login.',
+		text: (c) => masked(c.connections.fetchboxPasscode, 0)
+	},
+	{
+		id: 'connTestFetchbox', tab: 'connections', label: 'Test Fetchbox', kind: 'action',
+		description: 'Checks that Spoke can log in to Fetchbox.',
+		text: () => 'Test'
+	}
+];
+
+export const PREFS: Pref[] = (WEATHER_ENABLED ? BASE_PREFS.concat(WEATHER_PREFS) : BASE_PREFS).concat(TRENDING_ENABLED ? TRENDING_PREFS : []).concat(TRENDING_ENABLED ? CINEMA_PREFS : []).concat(CONNECTIONS_PREFS);
 
 export function findPref (id: string): Pref | undefined {
 	return PREFS.find((p) => p.id === id);
