@@ -230,7 +230,6 @@ html, body {
 	letter-spacing: 0.18em;
 	text-transform: uppercase;
 	color: var(--color-text-muted);
-	transition: color var(--motion-focus-ms) ease-out;
 }
 .row--focused .row__label { color: var(--color-text-secondary); }
 
@@ -369,7 +368,6 @@ html, body {
 	color: var(--color-text-secondary);
 	white-space: normal;
 	overflow: hidden;
-	transition: color var(--motion-focus-ms) ease-out;
 }
 .tile--focused .tile__label { color: var(--color-text-primary); }
 
@@ -440,7 +438,6 @@ html, body {
 	text-transform: uppercase;
 	color: var(--color-text-muted);
 	border-bottom: 3px solid transparent;
-	transition: color var(--motion-focus-ms) ease-out, border-color var(--motion-focus-ms) ease-out;
 }
 .tab--active { color: var(--color-text-secondary); border-bottom-color: var(--color-tile-border); }
 .tab--focused { color: var(--color-text-primary); border-bottom-color: var(--color-tile-border-focus); }
@@ -457,7 +454,7 @@ html, body {
 	color: var(--color-text-secondary);
 	box-shadow: 0 0 0 2px var(--color-button-border);
 	transform: scale(1);
-	transition: transform var(--motion-focus-ms) ease-out, box-shadow var(--motion-focus-ms) ease-out, background var(--motion-focus-ms) ease-out, color var(--motion-focus-ms) ease-out;
+	transition: transform var(--motion-focus-ms) ease-out;
 }
 .settings__button--focused {
 	color: var(--color-text-primary);
@@ -530,7 +527,6 @@ html, body {
 	border-radius: var(--layout-tile-radius);
 	background: var(--color-tile-bg);
 	box-shadow: 0 0 0 2px var(--color-tile-border);
-	transition: box-shadow var(--motion-focus-ms) ease-out, background var(--motion-focus-ms) ease-out;
 }
 .option--focused {
 	background: var(--color-tile-bg-focus);
@@ -548,7 +544,6 @@ html, body {
 	width: 76px; height: 40px;
 	border-radius: 20px;
 	background: var(--color-switch-track);
-	transition: background var(--motion-focus-ms) ease-out;
 }
 .switch__knob {
 	position: absolute;
@@ -601,7 +596,6 @@ html, body {
 	border-radius: 20px;
 	background: var(--color-tile-bg);
 	box-shadow: 0 0 0 2px var(--color-tile-border);
-	transition: box-shadow var(--motion-focus-ms) ease-out, background var(--motion-focus-ms) ease-out;
 }
 .picker__row--focused {
 	background: var(--color-tile-bg-focus);
@@ -1113,6 +1107,8 @@ html, body {
 
 .cinema__nav--focused {
 	color: #fff;
+	border-left-color: var(--color-tile-border-focus);
+	background: rgba(255, 255, 255, 0.06);
 }
 
 .cinema__sidebar--active .cinema__nav--focused {
