@@ -9,9 +9,11 @@ import {Watchlist} from './Watchlist';
 import {Downloads} from './Downloads';
 import {useKeyTrap} from '../hooks/useKeyTrap';
 import {launchApp} from '../lib/launch';
-import {getPlexIndex, refreshPlexIndex, onPlexIndexChange, type PlexIndex} from '../lib/plex';
+import {getPlexIndex, refreshPlexIndex, onPlexIndexChange, type PlexIndex, type PlexItem} from '../lib/plex';
+import {findByTvdbId, fetchSearchResults as tmdbSearch} from '../lib/tmdb';
 import {getHiddenSections} from '../lib/pin';
 import {startMonitor, stopMonitor, getUnreadCount, clearUnread, onUnreadChange} from '../lib/dlmonitor';
+import {ShowDetail} from './ShowDetail';
 import {
 	sonarrConn, radarrConn,
 	watchlistAddSeriesByTmdb, watchlistAddMovie,
@@ -129,6 +131,9 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 	// Action / download panel
 	const [panel, setPanel] = useState<PanelState | null>(null);
 
+	// Show Detail page (full-screen overlay for TV shows)
+	var [showDetail, setShowDetail] = useState<TrendingShow | null>(null);
+
 	// Plex library index: lightweight TMDB-id lookup for "Play on Plex"
 	var PLEX_APP = 'cdp-30';
 	var hiddenSections = useMemo(function () { return showHidden ? [] as string[] : getHiddenSections(); }, [showHidden]);
@@ -222,7 +227,10 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 	const panelBtns: {label: string; action: string}[] = useMemo(() => {
 		if (!panel) return [];
 		var btns: {label: string; action: string}[] = [];
-		if (isOnPlex) btns.push({label: onPlayPlex ? 'Play' : 'Play on Plex', action: 'launch-plex'});
+		if (isOnPlex) {
+			if (panel.item.mediaType === 'tv' && onPlayPlex) btns.push({label: 'Episodes ▸', action: 'launch-plex'});
+			else btns.push({label: onPlayPlex ? 'Play' : 'Play on Plex', action: 'launch-plex'});
+		}
 		for (var i = 0; i < panel.item.providers.length; i++) {
 			var sp = panel.item.providers[i];
 			var def = providerDef(sp.id);
@@ -259,8 +267,52 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 	}, []);
 
 	const openBrowsePanel = useCallback((item: TrendingShow) => {
-		setPanel({item, level: 'actions', btnIdx: 0, search: null, seasonIdx: 0, grabbing: false});
+		if (item.mediaType === 'tv') setShowDetail(item);
+		else setPanel({item, level: 'actions', btnIdx: 0, search: null, seasonIdx: 0, grabbing: false});
 	}, []);
+
+	const openServerShowDetail = useCallback((item: PlexItem) => {
+		if (item.type !== 'show') return;
+		var tmdbId = plexIdx ? plexIdx.getTmdbId(item.ratingKey) : null;
+		if (tmdbId && tmdbId > 0) {
+			setShowDetail({id: tmdbId, name: item.title, mediaType: 'tv', overview: item.summary || '', firstAir: '', rating: item.rating || 0, poster: null, backdrop: null, providers: []});
+			return;
+		}
+		onToast('Looking up ' + item.title + '…');
+		tmdbSearch('tv', apiKey, item.title, 1, allowShell).then(function (result) {
+			var match: TrendingShow | null = null;
+			for (var i = 0; i < result.items.length; i++) {
+				if (item.year && yearOf(result.items[i].firstAir) === String(item.year)) { match = result.items[i]; break; }
+			}
+			if (match) setShowDetail(match);
+			else onToast("Couldn't identify this show", 'error');
+		}).catch(function () { onToast('TMDB lookup failed', 'error'); });
+	}, [plexIdx, apiKey, allowShell, onToast]);
+
+	const openWatchlistShowDetail = useCallback((title: string, year: number, tvdbId?: number) => {
+		if (tvdbId) {
+			findByTvdbId(apiKey, tvdbId, allowShell).then(function (show) {
+				if (show && show.id > 0) { setShowDetail(show); return; }
+				tmdbSearch('tv', apiKey, title, 1, allowShell).then(function (result) {
+					var match: TrendingShow | null = null;
+					for (var i = 0; i < result.items.length; i++) {
+						if (year && yearOf(result.items[i].firstAir) === String(year)) { match = result.items[i]; break; }
+					}
+					if (match) setShowDetail(match);
+					else onToast("Couldn't identify this show", 'error');
+				}).catch(function () { onToast('TMDB lookup failed', 'error'); });
+			}).catch(function () { onToast('TMDB lookup failed', 'error'); });
+			return;
+		}
+		tmdbSearch('tv', apiKey, title, 1, allowShell).then(function (result) {
+			var match: TrendingShow | null = null;
+			for (var i = 0; i < result.items.length; i++) {
+				if (year && yearOf(result.items[i].firstAir) === String(year)) { match = result.items[i]; break; }
+			}
+			if (match) setShowDetail(match);
+			else onToast("Couldn't identify this show", 'error');
+		}).catch(function () { onToast('TMDB lookup failed', 'error'); });
+	}, [apiKey, allowShell, onToast]);
 
 	// --- download flow ---
 
@@ -725,7 +777,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 		return true;
 	}, [zone, tabIdx, rowIdx, cols, rows, panel, panelBtns, seasonList, onExitDown, switchTab]);
 
-	const cinemaKeysActive = active && (zone === 'sidebar' || !!panel || tab.id === 'home');
+	const cinemaKeysActive = active && !showDetail && (zone === 'sidebar' || !!panel || tab.id === 'home');
 	useKeys(handleKey, cinemaKeysActive);
 
 	useOkPress({
@@ -737,9 +789,9 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 					const btn = panelBtns[panel.btnIdx];
 					if (!btn) return;
 					if (btn.action === 'launch-plex') {
-						if (onPlayPlex && panel && plexIdx) {
+						if (panel && plexIdx) {
 							var rk = plexIdx.getRatingKey(panel.item.mediaType, panel.item.id);
-							if (rk) { onPlayPlex(rk, panel.item.name); setPanel(null); return; }
+							if (rk && onPlayPlex) { onPlayPlex(rk, panel.item.name); setPanel(null); return; }
 						}
 						launchApp(PLEX_APP).catch(function () { onToast("Couldn't open Plex", 'error'); }); setPanel(null);
 					}
@@ -858,7 +910,8 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 				if (!r) return;
 				const item = r.items[col];
 				if (!item) return;
-				setPanel({item, level: 'actions', btnIdx: 0, search: null, seasonIdx: 0, grabbing: false});
+				if (item.mediaType === 'tv') setShowDetail(item);
+				else setPanel({item, level: 'actions', btnIdx: 0, search: null, seasonIdx: 0, grabbing: false});
 			}
 		},
 		onLongPress: () => {}
@@ -888,7 +941,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 					<Browse
 						apiKey={apiKey}
 						allowShell={allowShell}
-						active={active && zone === 'rows' && !panel}
+						active={active && zone === 'rows' && !panel && !showDetail}
 						providerIds={providerIds}
 						onOpenPanel={openBrowsePanel}
 						onExitLeft={() => setZone('sidebar')}
@@ -899,7 +952,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 					<MyServer
 						plexUrl={plexUrl}
 						plexToken={plexToken}
-						active={active && zone === 'rows' && !panel}
+						active={active && zone === 'rows' && !panel && !showDetail}
 						showHidden={showHidden}
 						onExitLeft={() => setZone('sidebar')}
 						onToast={onToast}
@@ -908,6 +961,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 						radarrUrl={radarrUrl}
 						radarrKey={radarrKey}
 						onPlayPlex={onPlayPlex}
+						onOpenShowDetail={openServerShowDetail}
 					/>
 				) : tab.id === 'watchlist' ? (
 					<Watchlist
@@ -915,10 +969,11 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 						sonarrKey={sonarrKey}
 						radarrUrl={radarrUrl}
 						radarrKey={radarrKey}
-						active={active && zone === 'rows' && !panel}
+						active={active && zone === 'rows' && !panel && !showDetail}
 						onExitLeft={() => setZone('sidebar')}
 						onToast={onToast}
 						enableDelete={enableDeleteActions}
+						onOpenShowDetail={openWatchlistShowDetail}
 					/>
 				) : tab.id === 'downloads' ? (
 					<Downloads
@@ -970,10 +1025,12 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 														class={'cinema__card' + (focused ? ' cinema__card--focused' : '')}
 														onMouseEnter={() => { if (!panel) { setZone('rows'); setRowIdx(ri); setCols(function (prev) { return {...prev, [ri]: ci}; }); } }}
 													>
-														{p
-															? <img class="cinema__poster" src={p} alt="" />
-															: <div class="cinema__poster cinema__poster--empty" />}
-														{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
+														<div class="cinema__poster-wrap">
+															{p
+																? <img class="cinema__poster" src={p} alt="" />
+																: <div class="cinema__poster cinema__poster--empty" />}
+															{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
+														</div>
 														<div class="cinema__card-title">{item.name}</div>
 														<div class="cinema__card-year">{yearOf(item.firstAir)}</div>
 													</div>
@@ -1151,6 +1208,30 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 					)}
 				</div>
 			</div>
+
+			{/* Show Detail full-screen overlay for TV shows */}
+			{showDetail && (
+				<ShowDetail
+					show={showDetail}
+					open={!!showDetail}
+					active={active && !!(showDetail)}
+					onClose={function () { setShowDetail(null); }}
+					onPlayPlex={onPlayPlex}
+					onToast={onToast}
+					onLaunch={onLaunch}
+					apiKey={apiKey}
+					allowShell={allowShell}
+					plexUrl={plexUrl}
+					plexToken={plexToken}
+					plexIdx={plexIdx}
+					installedAppIds={installedAppIds}
+					isOnWatchlist={!!(showDetail && wlSeriesTitles.indexOf(showDetail.name.toLowerCase()) >= 0)}
+					sonarrUrl={sonarrUrl}
+					sonarrKey={sonarrKey}
+					enableDeleteActions={enableDeleteActions}
+					onWatchlistChanged={refreshWlStatus}
+				/>
+			)}
 		</div>
 	);
 }

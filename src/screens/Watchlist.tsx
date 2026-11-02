@@ -24,6 +24,7 @@ interface Props {
 	onExitLeft: () => void;
 	onToast: (msg: string, kind?: 'info' | 'error') => void;
 	enableDelete: boolean;
+	onOpenShowDetail?: (title: string, year: number, tvdbId?: number) => void;
 }
 
 type WatchZone = 'rows' | 'detail';
@@ -96,7 +97,7 @@ function fmtEta (iso: string | undefined): string {
 	} catch { return ''; }
 }
 
-export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, onExitLeft, onToast, enableDelete}: Props) {
+export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, onExitLeft, onToast, enableDelete, onOpenShowDetail}: Props) {
 	var [series, setSeries] = useState<SonarrSeries[]>([]);
 	var [movies, setMovies] = useState<RadarrMovie[]>([]);
 	var [calendar, setCalendar] = useState<SonarrCalendarEntry[]>([]);
@@ -655,6 +656,10 @@ export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 				if (!r) return;
 				var item = r.items[col];
 				if (!item) return;
+				if (item.mediaType === 'tv' && onOpenShowDetail) {
+					onOpenShowDetail(item.title, item.year, item.sonarrSeries ? item.sonarrSeries.tvdbId : undefined);
+					return;
+				}
 				setDetail({item: item, btnIdx: 0, confirming: null});
 			}
 		},

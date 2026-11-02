@@ -220,11 +220,27 @@ export function safeError (e: unknown, token: string): string {
 	return msg || 'Connection failed';
 }
 
+export function fetchShowMeta (plexUrl: string, token: string, ratingKey: string): Promise<PlexItem> {
+	return plexFetch(base(plexUrl) + '/library/metadata/' + encodeURIComponent(ratingKey), token).then(function (json) {
+		var page = parsePage(json);
+		if (page.items.length > 0) return page.items[0];
+		return {ratingKey: ratingKey, type: 'show' as const, title: ''};
+	});
+}
+
+export function plexStillUrl (plexUrl: string, token: string, thumb: string | undefined, width?: number): string | null {
+	if (!thumb) return null;
+	var w = width || 300;
+	var h = Math.round(w * 9 / 16);
+	return base(plexUrl) + '/photo/:/transcode?width=' + w + '&height=' + h + '&minSize=1&url=' + encodeURIComponent(thumb) + '&X-Plex-Token=' + encodeURIComponent(token);
+}
+
 // --- Plex TMDB index: lightweight in-memory map of tmdb IDs on the server ---
 
 export interface PlexIndex {
 	has (mediaType: 'tv' | 'movie', tmdbId: number): boolean;
 	getRatingKey (mediaType: 'tv' | 'movie', tmdbId: number): string | null;
+	getTmdbId (ratingKey: string): number | null;
 }
 
 var INDEX_TTL = 10 * 60 * 1000;
@@ -330,9 +346,20 @@ export function getPlexIndex (plexUrl: string, token: string, hiddenSections: st
 		refreshPlexIndex(plexUrl, token, hiddenSections);
 	}
 	var set = _idx.set;
+	var rev: Record<string, number> | null = null;
+	function reverseMap (): Record<string, number> {
+		if (rev) return rev;
+		rev = {};
+		for (var k in set) {
+			var parts = k.split(':');
+			if (parts.length === 2) rev[set[k]] = parseInt(parts[1], 10);
+		}
+		return rev;
+	}
 	return {
 		has: function (mediaType, tmdbId) { return indexKey(mediaType, tmdbId) in set; },
-		getRatingKey: function (mediaType, tmdbId) { var k = indexKey(mediaType, tmdbId); return k in set ? set[k] : null; }
+		getRatingKey: function (mediaType, tmdbId) { var k = indexKey(mediaType, tmdbId); return k in set ? set[k] : null; },
+		getTmdbId: function (ratingKey) { var r = reverseMap(); return ratingKey in r ? r[ratingKey] : null; }
 	};
 }
 

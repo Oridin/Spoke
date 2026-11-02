@@ -35,6 +35,7 @@ interface Props {
 	radarrUrl?: string;
 	radarrKey?: string;
 	onPlayPlex?: (ratingKey: string, title: string) => void;
+	onOpenShowDetail?: (item: PlexItem) => void;
 }
 
 type ServerZone = 'bar' | 'rows' | 'sort' | 'filter' | 'search' | 'detail';
@@ -44,8 +45,9 @@ type ViewMode = 'cinema' | 'compact' | 'grid';
 interface GenreRow { genre: PlexGenre; items: PlexItem[]; page: number; totalSize: number; loading: boolean; }
 interface ContentRow { title: string; items: PlexItem[]; isGrid: boolean; }
 interface DetailState {
-	item: PlexItem; level: 'info' | 'episodes' | 'monitor' | 'wl-confirm' | 'dl-scope' | 'dl-seasons' | 'dl-episodes' | 'dl-confirm'; btnIdx: number;
+	item: PlexItem; level: 'info' | 'episodes' | 'ep-detail' | 'monitor' | 'wl-confirm' | 'dl-scope' | 'dl-seasons' | 'dl-episodes' | 'dl-confirm'; btnIdx: number;
 	seasons: PlexItem[]; episodes: PlexItem[]; seasonIdx: number; loading: boolean;
+	selectedEp?: PlexItem;
 	wlScope?: MonitorScope;
 	wlCounts?: {future: number; lastSeason: number; all: number; total: number} | null;
 	dlCounts?: {lastSeason: number; all: number} | null;
@@ -114,7 +116,7 @@ function cardSub (item: PlexItem): string {
 function cardThumb (item: PlexItem): string | undefined { return item.type === 'episode' ? (item.grandparentThumb || item.thumb) : item.thumb; }
 function cardArt (item: PlexItem): string | undefined { return item.art || item.grandparentArt; }
 
-export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, onToast, sonarrUrl, sonarrKey, radarrUrl, radarrKey, onPlayPlex}: Props) {
+export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, onToast, sonarrUrl, sonarrKey, radarrUrl, radarrKey, onPlayPlex, onOpenShowDetail}: Props) {
 	var [allSections, setAllSections] = useState<PlexSection[]>([]);
 	var [sectionIdx, setSectionIdx] = useState(0);
 	var [zone, setZone] = useState<ServerZone>('rows');
@@ -249,6 +251,7 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 	var detailBtnCount = useMemo(function () {
 		if (!detail) return 0;
 		if (detail.level === 'episodes') return detail.episodes.length;
+		if (detail.level === 'ep-detail') return hasArr ? 2 : 1;
 		if (detail.level === 'monitor') return MONITOR_OPTS.length;
 		if (detail.level === 'wl-confirm') return 2;
 		if (detail.level === 'dl-scope') return 5;
@@ -401,6 +404,10 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 	}, [onToast]);
 
 	var openDetail = useCallback(function (item: PlexItem) {
+		if (item.type === 'show' && onOpenShowDetail) {
+			onOpenShowDetail(item);
+			return;
+		}
 		var state: DetailState = {item: item, level: 'info', btnIdx: 0, seasons: [], episodes: [], seasonIdx: 0, loading: item.type === 'show'};
 		setDetail(state); setZone('detail');
 		if (item.type === 'show') {
@@ -408,7 +415,7 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 				.then(function (seasons) { setDetail(function (d) { return d ? {...d, seasons: seasons, loading: false} : null; }); })
 				.catch(function () { setDetail(function (d) { return d ? {...d, loading: false} : null; }); onToast('Failed to load seasons', 'error'); });
 		}
-	}, [plexUrl, plexToken, onToast]);
+	}, [plexUrl, plexToken, onToast, onOpenShowDetail]);
 
 	var cycleSection = useCallback(function () {
 		if (sections.length < 2) return;
@@ -696,7 +703,8 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 		if (zone === 'detail' && detail) {
 			if (detail.loading) return true;
 			if (key === 'back') {
-				if (detail.level === 'episodes') { setDetail({...detail, level: 'info', btnIdx: detail.seasonIdx + 1, episodes: [], loading: false}); }
+				if (detail.level === 'ep-detail') { setDetail({...detail, level: 'episodes', btnIdx: detail.selectedEp ? Math.max(0, detail.episodes.indexOf(detail.selectedEp)) : 0, selectedEp: undefined}); }
+				else if (detail.level === 'episodes') { setDetail({...detail, level: 'info', btnIdx: detail.seasonIdx + 1, episodes: [], loading: false}); }
 				else if (detail.level === 'wl-confirm') {
 					if (detail.item.type === 'show') setDetail({...detail, level: 'monitor', btnIdx: 0});
 					else setDetail({...detail, level: 'info', btnIdx: 1});
@@ -775,6 +783,17 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 				if (detail.loading) return;
 				if (detail.level === 'info') {
 					if (detail.btnIdx === 0) {
+						if (detail.item.type === 'show') {
+							// For shows, drill into first season
+							if (detail.seasons.length > 0) {
+								var firstSeason = detail.seasons[0];
+								setDetail({...detail, level: 'episodes', seasonIdx: 0, btnIdx: 0, loading: true, episodes: []});
+								fetchEpisodes(plexUrl, plexToken, firstSeason.ratingKey)
+									.then(function (eps) { setDetail(function (d) { return d ? {...d, episodes: eps, loading: false} : null; }); })
+									.catch(function () { setDetail(function (d) { return d ? {...d, loading: false} : null; }); onToast('Failed to load episodes', 'error'); });
+							}
+							return;
+						}
 						if (onPlayPlex) { onPlayPlex(detail.item.ratingKey, detail.item.title); setDetail(null); setZone('rows'); return; }
 						launchPlex(); setDetail(null); setZone('rows'); return;
 					}
@@ -872,7 +891,23 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 					}
 					return;
 				}
-				if (detail.level === 'episodes') { launchPlex(); setDetail(null); setZone('rows'); return; }
+				if (detail.level === 'episodes') {
+					var selEp = detail.episodes[detail.btnIdx];
+					if (selEp) setDetail({...detail, level: 'ep-detail', selectedEp: selEp, btnIdx: 0});
+					return;
+				}
+				if (detail.level === 'ep-detail') {
+					if (detail.btnIdx === 0 && detail.selectedEp) {
+						var epTitle = (detail.item.title || '') + ' — S' + (detail.selectedEp.parentIndex || '?') + 'E' + (detail.selectedEp.index || '?') + ' ' + detail.selectedEp.title;
+						if (onPlayPlex) { onPlayPlex(detail.selectedEp.ratingKey, epTitle); setDetail(null); setZone('rows'); return; }
+						launchPlex(); setDetail(null); setZone('rows'); return;
+					}
+					if (detail.btnIdx === 1 && detail.selectedEp) {
+						startPlexDownload();
+						return;
+					}
+					return;
+				}
 				return;
 			}
 			if (zone === 'search' && !searchTyping) {
@@ -1088,7 +1123,7 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 							{' · '}{detail.item.type === 'show' ? 'TV Show' : detail.item.type === 'episode' ? 'Episode' : 'Movie'}
 						</p>
 						<button class={'cinema__panel-btn' + (detail.btnIdx === 0 ? ' cinema__panel-btn--focused' : '')}>
-							<span class="cinema__panel-btn-icon">{'▶'}</span>{onPlayPlex ? 'Play' : 'Play on Plex'}
+							<span class="cinema__panel-btn-icon">{detail.item.type === 'show' ? '▸' : '▶'}</span>{detail.item.type === 'show' ? 'Episodes' : (onPlayPlex ? 'Play' : 'Play on Plex')}
 						</button>
 						{hasArr && (detail.item.type === 'show' || detail.item.type === 'movie') && (
 							<button class={'cinema__panel-btn' + (detail.btnIdx === 1 ? ' cinema__panel-btn--focused' : '')}>
@@ -1149,6 +1184,24 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 								</button>
 							);
 						})}
+					</div>
+				)}
+				{detail && detail.level === 'ep-detail' && detail.selectedEp && (
+					<div class="cinema__panel-content">
+						<div class="cinema__panel-back">{'← ' + (detail.seasons[detail.seasonIdx] ? detail.seasons[detail.seasonIdx].title : 'Episodes')}</div>
+						<h2 class="cinema__panel-title">{'S' + (detail.selectedEp.parentIndex || '?') + 'E' + (detail.selectedEp.index || '?') + ' — ' + detail.selectedEp.title}</h2>
+						{detail.selectedEp.summary && <p class="plex-detail-summary">{detail.selectedEp.summary}</p>}
+						<button class={'cinema__panel-btn' + (detail.btnIdx === 0 ? ' cinema__panel-btn--focused' : '')}>
+							<span class="cinema__panel-btn-icon">{'▶'}</span>Play
+							{detail.selectedEp.viewOffset != null && detail.selectedEp.viewOffset > 0 && detail.selectedEp.duration != null && detail.selectedEp.duration > 0
+								? ' (resume ' + Math.round(detail.selectedEp.viewOffset / detail.selectedEp.duration * 100) + '%)'
+								: detail.selectedEp.viewCount != null && detail.selectedEp.viewCount > 0 ? ' ✓' : ''}
+						</button>
+						{hasArr && (
+							<button class={'cinema__panel-btn' + (detail.btnIdx === 1 ? ' cinema__panel-btn--focused' : '')}>
+								<span class="cinema__panel-btn-icon">{'↓'}</span>Download
+							</button>
+						)}
 					</div>
 				)}
 				{detail && detail.level === 'wl-confirm' && (
