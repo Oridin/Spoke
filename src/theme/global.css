@@ -1360,6 +1360,115 @@ img.cinema__poster--ready {
 }
 
 
+/* --- cinema right-hand panel (MyServer, Watchlist, Browse, Downloads) --- */
+
+.cinema__panel {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	width: 420px;
+	background: rgba(0, 0, 0, 0.92);
+	z-index: 20;
+	-webkit-transform: translate3d(100%, 0, 0);
+	transform: translate3d(100%, 0, 0);
+	transition: transform 300ms ease-out;
+	overflow: hidden;
+}
+
+.cinema__panel--open {
+	-webkit-transform: translate3d(0, 0, 0);
+	transform: translate3d(0, 0, 0);
+}
+
+.cinema__panel-content {
+	padding: 48px 36px;
+	overflow-y: auto;
+	height: 100%;
+}
+
+.cinema__panel-title {
+	font-size: 36px;
+	font-weight: 700;
+	margin: 0 0 8px;
+	color: #fff;
+	line-height: 1.1;
+}
+
+.cinema__panel-sub {
+	font-size: 20px;
+	color: rgba(255, 255, 255, 0.5);
+	margin: 0 0 36px;
+}
+
+.cinema__panel-back {
+	font-size: 18px;
+	color: rgba(255, 255, 255, 0.5);
+	margin-bottom: 24px;
+}
+
+.cinema__panel-btn {
+	display: -webkit-flex;
+	display: flex;
+	-webkit-align-items: center;
+	align-items: center;
+	width: 100%;
+	padding: 18px 24px;
+	margin-bottom: 8px;
+	border-radius: 10px;
+	border: 2px solid transparent;
+	background: rgba(255, 255, 255, 0.06);
+	color: #fff;
+	font-size: 22px;
+	font-family: inherit;
+	cursor: pointer;
+	outline: none;
+	text-align: left;
+	transition: transform 200ms ease-out, opacity 200ms ease-out;
+}
+
+.cinema__panel-btn--focused {
+	border-color: #fff;
+	background: rgba(255, 255, 255, 0.12);
+	-webkit-transform: scale(1.03);
+	transform: scale(1.03);
+}
+
+.cinema__panel-btn-icon {
+	margin-right: 14px;
+	font-size: 18px;
+	opacity: 0.6;
+}
+
+.cinema__panel-credit {
+	font-size: 14px;
+	color: rgba(255, 255, 255, 0.25);
+	margin-top: 24px;
+}
+
+.cinema__panel-loading {
+	display: -webkit-flex;
+	display: flex;
+	-webkit-align-items: center;
+	align-items: center;
+	-webkit-justify-content: center;
+	justify-content: center;
+	height: 100%;
+	color: rgba(255, 255, 255, 0.5);
+	font-size: 24px;
+}
+
+.cinema__panel-note {
+	margin-top: 16px;
+	color: rgba(255, 255, 255, 0.45);
+	font-size: 18px;
+	line-height: 1.4;
+}
+
+.cinema__panel-btn--danger {
+	color: #f87171;
+}
+
 /* --- shared cinema background for the app bar --- */
 
 .rows--cinema {
@@ -1925,6 +2034,18 @@ img.browse__search-poster {
 	color: #fff;
 }
 
+
+.watchlist__confirm-btns {
+	display: -webkit-flex;
+	display: flex;
+	margin-top: 16px;
+}
+.watchlist__confirm-btns .cinema__panel-btn {
+	-webkit-flex: 1 1 0;
+	flex: 1 1 0;
+	text-align: center;
+	margin: 0 6px;
+}
 
 .cinema__badge--downloading { background: rgba(59,130,246,0.4); }
 .cinema__badge--upcoming { background: rgba(168,85,247,0.4); }
