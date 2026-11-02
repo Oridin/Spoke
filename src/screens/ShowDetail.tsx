@@ -994,7 +994,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 							var cls = 'show-detail__action-btn';
 							if (btn.primary) cls += ' show-detail__action-btn--primary';
 							if (zone === 'actions' && i === actionIdx) cls += ' show-detail__action-btn--focused';
-							return <button key={btn.action + i} class={cls}>{btn.primary ? '▶ ' + btn.label : btn.label}</button>;
+							return <button key={btn.action + i} class={cls} onClick={function () { setZone('actions'); setActionIdx(i); doAction(btn.action); }}>{btn.primary ? '▶ ' + btn.label : btn.label}</button>;
 						})}
 					</div>
 				</div>
@@ -1012,7 +1012,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 								if (zone === 'seasons' && i === seasonIdx) cls += ' show-detail__season-item--focused';
 								var pctW = prog && prog.total > 0 ? Math.round(prog.watched / prog.total * 100) : 0;
 								return (
-									<div key={s.season_number} class={cls}>
+									<div key={s.season_number} class={cls} onClick={function () { setZone('seasons'); setSeasonIdx(i); setEpIdx(0); }}>
 										<p class="show-detail__season-label">{'Season ' + s.season_number}</p>
 										<p class="show-detail__season-count">{(prog ? prog.total : s.episode_count || 0) + ' episodes' + (prog && prog.watched > 0 ? ' · ' + prog.watched + ' watched' : '')}</p>
 										{prog && prog.watched > 0 && (
@@ -1024,7 +1024,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 								);
 							})}
 							{hasArr && (
-								<div class={'show-detail__season-item show-detail__season-item--actions' + (zone === 'seasons' && seasonIdx === displaySeasons.length ? ' show-detail__season-item--focused' : '')}>
+								<div class={'show-detail__season-item show-detail__season-item--actions' + (zone === 'seasons' && seasonIdx === displaySeasons.length ? ' show-detail__season-item--focused' : '')} onClick={function () { setZone('seasons'); setSeasonIdx(displaySeasons.length); setOverlay('season-actions'); setOverlayIdx(0); }}>
 									<p class="show-detail__season-label">{'Actions ⋯'}</p>
 								</div>
 							)}
@@ -1044,7 +1044,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 							if (ep.unaired) cls += ' show-detail__episode--unaired';
 							var pct = ep.viewOffset > 0 && ep.duration > 0 ? Math.round(ep.viewOffset / ep.duration * 100) : 0;
 							return (
-								<div key={ep.seasonNum + ':' + ep.epNum} class={cls}>
+								<div key={ep.seasonNum + ':' + ep.epNum} class={cls} onClick={function () { setZone('episodes'); setEpIdx(i); handleEpisodeOk(ep); }}>
 									<div class="show-detail__ep-still">
 										{ep.stillUrl
 											? <img src={ep.stillUrl} alt="" loading="lazy" />
@@ -1164,7 +1164,11 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 					{seasonActionItems.map(function (item, i) {
 						var cls = 'show-detail__action-btn';
 						if (i === overlayIdx) cls += ' show-detail__action-btn--focused';
-						return <button key={item.action} class={cls} style="display:block;width:100%;margin:0 0 8px">{item.label}</button>;
+						return <button key={item.action} class={cls} style="display:block;width:100%;margin:0 0 8px" onClick={function () {
+						if (item.action === 'cancel') setOverlay(null);
+						else if (item.action === 'dl-season') doSeasonDownload();
+						else if (item.action === 'remove') { setOverlay('remove-confirm'); setOverlayIdx(0); }
+					}}>{item.label}</button>;
 					})}
 				</div>
 			)}
@@ -1173,8 +1177,8 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 				<div class="show-detail__overlay-center">
 					<p class="show-detail__overlay-title">{'Download ' + formatEpCode(dlTarget.seasonNum, dlTarget.epNum) + ' ' + dlTarget.name + '?'}</p>
 					<div class="show-detail__overlay-row">
-						<button class={'show-detail__action-btn' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')}>Cancel</button>
-						<button class={'show-detail__action-btn show-detail__action-btn--primary' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')}>Download</button>
+						<button class={'show-detail__action-btn' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay(null); setDlTarget(null); }}>Cancel</button>
+						<button class={'show-detail__action-btn show-detail__action-btn--primary' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')} onClick={function () { if (dlTarget) doEpisodeDownload(dlTarget); }}>Download</button>
 					</div>
 				</div>
 			)}
@@ -1185,7 +1189,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 					{MONITOR_OPTS.map(function (opt, i) {
 						var cls = 'show-detail__action-btn';
 						if (i === overlayIdx) cls += ' show-detail__action-btn--focused';
-						return <button key={opt.key} class={cls} style="display:block;width:100%;margin:0 0 8px">{opt.label}</button>;
+						return <button key={opt.key} class={cls} style="display:block;width:100%;margin:0 0 8px" onClick={function () { doWlAdd(opt.key); }}>{opt.label}</button>;
 					})}
 				</div>
 			)}
@@ -1194,8 +1198,8 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 				<div class="show-detail__overlay-center">
 					<p class="show-detail__overlay-title">{'Stop monitoring ' + show.name + '?'}</p>
 					<div class="show-detail__overlay-row">
-						<button class={'show-detail__action-btn' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')}>Cancel</button>
-						<button class={'show-detail__action-btn show-detail__action-btn--primary' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')}>Stop</button>
+						<button class={'show-detail__action-btn' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay(null); }}>Cancel</button>
+						<button class={'show-detail__action-btn show-detail__action-btn--primary' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')} onClick={function () { doWlStop(); }}>Stop</button>
 					</div>
 				</div>
 			)}
@@ -1205,8 +1209,8 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 					<p class="show-detail__overlay-title">{'Remove ' + show.name + (sonarrSeries && sonarrSeries.statistics && sonarrSeries.statistics.sizeOnDisk ? ' (' + formatSize(sonarrSeries.statistics.sizeOnDisk) + ')' : '') + '?'}</p>
 					<p class="show-detail__overlay-warn">This may be the only copy of this file if the torrent is no longer in Deluge. The torrent itself isn't touched.</p>
 					<div class="show-detail__overlay-row">
-						<button class={'show-detail__action-btn' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')}>Cancel</button>
-						<button class={'show-detail__action-btn show-detail__action-btn--primary' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')}>Remove</button>
+						<button class={'show-detail__action-btn' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay(null); }}>Cancel</button>
+						<button class={'show-detail__action-btn show-detail__action-btn--primary' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')} onClick={function () { doRemove(); }}>Remove</button>
 					</div>
 				</div>
 			)}

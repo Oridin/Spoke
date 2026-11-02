@@ -447,6 +447,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 														key={item.id}
 														class={'cinema__card' + (focused ? ' cinema__card--focused' : '')}
 														onMouseEnter={() => { setZone('rows'); setRowIdx(ri); setCols(function (prev) { return {...prev, [ri]: ci}; }); }}
+													onClick={() => { setZone('rows'); setRowIdx(ri); setCols(function (prev) { return {...prev, [ri]: ci}; }); pushShowDetail(item); }}
 													>
 														<div class="cinema__poster-wrap">
 															{p
