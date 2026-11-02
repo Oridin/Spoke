@@ -21,6 +21,16 @@ export interface Colors {
 	scrim: string;
 	/** opacity of the shade at the top, middle and bottom of the wallpaper (0: none, as on light themes, where a pale shade glows) */
 	scrimTop: string; scrimMid: string; scrimBottom: string;
+
+	accent: string;
+	gold: string;
+	success: string;
+	error: string;
+	info: string;
+	warning: string;
+	surfaceOverlay: string;
+	surfacePanel: string;
+	borderSubtle: string;
 }
 
 /** OLED black: pure #000 so the pixels are off, with neutral greys on top. */
@@ -49,7 +59,16 @@ const BLACK: Colors = {
 	danger: '#EF7A73',
 	overlay: 'rgba(0, 0, 0, 0.88)',
 	pickerBg: '#000000',
-	scrim: '0, 0, 0', scrimTop: '0.22', scrimMid: '0.08', scrimBottom: '0.5'
+	scrim: '0, 0, 0', scrimTop: '0.22', scrimMid: '0.08', scrimBottom: '0.5',
+	accent: '#e87e24',
+	gold: '#e5a00d',
+	success: '#4ade80',
+	error: '#EF7A73',
+	info: '#60a5fa',
+	warning: '#fbbf24',
+	surfaceOverlay: 'rgba(0, 0, 0, 0.92)',
+	surfacePanel: '#0a0a0a',
+	borderSubtle: 'rgba(255, 255, 255, 0.1)'
 };
 
 /** The calm blue-grey look. */
@@ -78,7 +97,16 @@ const GREY: Colors = {
 	danger: '#EF7A73',
 	overlay: 'rgba(10, 17, 24, 0.82)',
 	pickerBg: '#0a1118',
-	scrim: '0, 0, 0', scrimTop: '0.22', scrimMid: '0.08', scrimBottom: '0.5'
+	scrim: '0, 0, 0', scrimTop: '0.22', scrimMid: '0.08', scrimBottom: '0.5',
+	accent: '#e87e24',
+	gold: '#e5a00d',
+	success: '#4ade80',
+	error: '#EF7A73',
+	info: '#60a5fa',
+	warning: '#fbbf24',
+	surfaceOverlay: 'rgba(10, 14, 20, 0.92)',
+	surfacePanel: '#0a1118',
+	borderSubtle: 'rgba(255, 255, 255, 0.1)'
 };
 
 /** #rrggbb as rgba() (8-digit hex is not understood by the web view of older TVs). */
@@ -95,7 +123,16 @@ function dark (bg: string, w: [string, string, string], tile: string, focus: str
 		badge: ink[0], badgeText: bg, liftShadow: 'rgba(0, 0, 0, 0.6)',
 		buttonBorder: edge, buttonActiveBg: ink[0], buttonActiveText: bg,
 		switchTrack: edge, switchTrackOn: ink[0], switchKnob: ink[1], switchKnobOn: bg,
-		danger: '#EF7A73', overlay: rgba(bg, 0.82), pickerBg: bg, scrim: '0, 0, 0', scrimTop: '0.22', scrimMid: '0.08', scrimBottom: '0.5'
+		danger: '#EF7A73', overlay: rgba(bg, 0.82), pickerBg: bg, scrim: '0, 0, 0', scrimTop: '0.22', scrimMid: '0.08', scrimBottom: '0.5',
+		accent: '#e87e24',
+		gold: '#e5a00d',
+		success: '#4ade80',
+		error: '#EF7A73',
+		info: '#60a5fa',
+		warning: '#fbbf24',
+		surfaceOverlay: rgba(bg, 0.92),
+		surfacePanel: bg,
+		borderSubtle: 'rgba(255, 255, 255, 0.1)'
 	};
 }
 
@@ -110,7 +147,16 @@ function light (bg: string, w: [string, string, string], tile: string, edge: str
 		badge: '#1B2430', badgeText: '#E4E9EE', liftShadow: 'rgba(0, 0, 0, 0.25)',
 		buttonBorder: '#6F7C8A', buttonActiveBg: '#1B2430', buttonActiveText: '#E4E9EE',
 		switchTrack: '#9AA6B2', switchTrackOn: '#1B2430', switchKnob: '#566372', switchKnobOn: '#E4E9EE',
-		danger: '#C0392B', overlay: rgba(dim, 0.95), pickerBg: dim, scrim: '0, 0, 0', scrimTop: '0', scrimMid: '0', scrimBottom: '0'
+		danger: '#C0392B', overlay: rgba(dim, 0.95), pickerBg: dim, scrim: '0, 0, 0', scrimTop: '0', scrimMid: '0', scrimBottom: '0',
+		accent: '#c06a1d',
+		gold: '#b8800a',
+		success: '#2d8a4e',
+		error: '#C0392B',
+		info: '#2563eb',
+		warning: '#b45309',
+		surfaceOverlay: rgba(dim, 0.95),
+		surfacePanel: dim,
+		borderSubtle: 'rgba(0, 0, 0, 0.12)'
 	};
 }
 
@@ -152,13 +198,26 @@ export const LAYOUT = {
 	rowLabelGap: 14,        // gap between a row's subheader and its tiles
 	rowGap: 28,             // vertical space between rows
 	gridTileSize: 112,      // tiles in the Settings grid (Apps, Sources): smaller than on the home row so more fit
-	gridColumns: 11         // tiles per line in that grid (11 x (112 + 28) = 1540 px of the 1640 px available)
+	gridColumns: 11,        // tiles per line in that grid (11 x (112 + 28) = 1540 px of the 1640 px available)
+	radiusSm: 6,
+	radiusMd: 10,
+	radiusLg: 16,
+	radiusXl: 24,
+	radiusPill: 999,
+	spaceXs: 4,
+	spaceSm: 8,
+	spaceMd: 16,
+	spaceLg: 24,
+	spaceXl: 32,
+	space2xl: 48
 } as const;
 
 export const MOTION = {
 	focusMs: 160,
 	scrollMs: 260,
 	focusScale: 1.12,
+	focusScaleMd: 1.04,
+	focusScaleSm: 1.02,
 	liftScale: 1.2,         // a tile picked up in re-order mode
 	unfocusedRowOpacity: 0.55
 } as const;
