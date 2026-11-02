@@ -2478,6 +2478,12 @@ img.browse__search-poster {
 	background: rgba(232, 126, 36, 0.4);
 }
 
+.show-detail__action-btn--block {
+	display: block;
+	width: 100%;
+	margin: 0 0 8px;
+}
+
 /* two-column body: seasons left, episodes right */
 .show-detail__body {
 	position: absolute;
