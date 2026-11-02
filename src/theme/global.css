@@ -1057,7 +1057,7 @@ html, body {
 
 .cinema__logo {
 	font-weight: 700;
-	color: #e87e24;
+	color: var(--color-accent);
 	padding: 0 0 28px;
 	text-align: center;
 	position: relative;
@@ -1107,7 +1107,7 @@ html, body {
 
 .cinema__nav--active {
 	color: rgba(255, 255, 255, 0.75);
-	border-left-color: #e87e24;
+	border-left-color: var(--color-accent);
 	background: rgba(232, 126, 36, 0.08);
 }
 
@@ -1116,7 +1116,7 @@ html, body {
 }
 
 .cinema__sidebar--active .cinema__nav--focused {
-	border-left-color: #e87e24;
+	border-left-color: var(--color-accent);
 	background: rgba(232, 126, 36, 0.15);
 }
 
@@ -1467,7 +1467,7 @@ img.cinema__poster--ready {
 }
 
 .cinema__panel-btn--danger {
-	color: #f87171;
+	color: var(--color-error);
 }
 
 /* --- shared cinema background for the app bar --- */
@@ -1537,7 +1537,7 @@ img.cinema__poster--ready {
 }
 
 .browse__bar-btn--clear {
-	color: #e87e24;
+	color: var(--color-accent);
 }
 
 /* --- content area --- */
@@ -1611,7 +1611,7 @@ img.cinema__poster--ready {
 }
 
 .browse__active-opt {
-	border-color: #e87e24;
+	border-color: var(--color-accent);
 }
 
 .browse__filter-btn {
@@ -1626,7 +1626,7 @@ img.cinema__poster--ready {
 }
 
 .browse__filter-value {
-	color: #e87e24;
+	color: var(--color-accent);
 	margin-left: 16px;
 }
 
@@ -1660,7 +1660,7 @@ img.cinema__poster--ready {
 }
 
 .browse__search-input:focus {
-	border-color: #e87e24;
+	border-color: var(--color-accent);
 }
 
 .browse__search-results {
@@ -1748,7 +1748,7 @@ img.browse__search-poster {
 }
 .plex-progress-fill {
 	height: 100%;
-	background: #e5a00d;
+	background: var(--color-gold);
 }
 .plex-watched {
 	position: absolute;
@@ -1804,7 +1804,7 @@ img.browse__search-poster {
 	width: 10px;
 	height: 10px;
 	border-radius: 50%;
-	background: #e5a00d;
+	background: var(--color-gold);
 	border: 1.5px solid rgba(0, 0, 0, 0.5);
 	pointer-events: none;
 }
@@ -1866,8 +1866,8 @@ img.browse__search-poster {
 	transition: background 0.15s;
 }
 .pin-overlay__dot--filled {
-	background: #e5a00d;
-	border-color: #e5a00d;
+	background: var(--color-gold);
+	border-color: var(--color-gold);
 }
 .pin-overlay__error {
 	font-size: 24px;
@@ -1906,7 +1906,7 @@ img.browse__search-poster {
 	transition: border-color 0.12s, background 0.12s;
 }
 .pin-overlay__key--focused {
-	border-color: #e5a00d;
+	border-color: var(--color-gold);
 	background: rgba(229, 160, 13, 0.18);
 }
 .pin-overlay__key--action {
@@ -2132,11 +2132,11 @@ img.browse__search-poster {
 	font-weight: 600;
 	text-transform: capitalize;
 }
-.downloads__status--downloading { color: #60a5fa; }
+.downloads__status--downloading { color: var(--color-info); }
 .downloads__status--importPending { color: #a78bfa; }
-.downloads__status--grabbed { color: #34d399; }
-.downloads__status--downloadFolderImported { color: #34d399; }
-.downloads__status--downloadFailed { color: #f87171; }
+.downloads__status--grabbed { color: var(--color-success); }
+.downloads__status--downloadFolderImported { color: var(--color-success); }
+.downloads__status--downloadFailed { color: var(--color-error); }
 
 .downloads__bar {
 	height: 3px;
@@ -2147,7 +2147,7 @@ img.browse__search-poster {
 }
 .downloads__bar-fill {
 	height: 100%;
-	background: #60a5fa;
+	background: var(--color-info);
 	border-radius: 2px;
 	transition: width 0.3s ease-out;
 }
@@ -2194,7 +2194,7 @@ img.browse__search-poster {
 }
 .plex-player__bar-fill {
 	height: 100%;
-	background: #e5a00d;
+	background: var(--color-gold);
 	border-radius: 2px;
 	transition: width 0.3s ease-out;
 }
@@ -2230,7 +2230,7 @@ img.browse__search-poster {
 .plex-player__spoke-ring {
 	width: 80px; height: 80px;
 	border: 3px solid rgba(232,126,36,0.15);
-	border-top-color: #e87e24;
+	border-top-color: var(--color-accent);
 	border-radius: 50%;
 	animation: spoke-spin 1s linear infinite;
 	margin: 0 auto 20px;
@@ -2243,7 +2243,7 @@ img.browse__search-poster {
 	transform: translate(-50%, -50%);
 	font-size: 28px;
 	font-weight: 700;
-	color: #e87e24;
+	color: var(--color-accent);
 	animation: spoke-pulse 2s ease-in-out infinite;
 }
 @keyframes spoke-spin {
@@ -2266,7 +2266,7 @@ img.browse__search-poster {
 	font-size: 24px;
 	letter-spacing: 3px;
 	font-weight: 700;
-	color: #e87e24;
+	color: var(--color-accent);
 	opacity: 0.4;
 	text-transform: uppercase;
 }
@@ -2288,14 +2288,14 @@ img.browse__search-poster {
 .downloads__confirm-overlay {
 	position: absolute;
 	top: 0; left: 0; right: 0; bottom: 0;
-	background: rgba(0,0,0,0.7);
+	background: var(--color-surface-overlay);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	z-index: 20;
 }
 .downloads__confirm-box {
-	background: #1e1e1e;
+	background: var(--color-surface-panel);
 	border-radius: 12px;
 	padding: 28px 32px;
 	max-width: 440px;
@@ -2323,17 +2323,17 @@ img.browse__search-poster {
 /* ---------- show detail ---------- */
 
 .show-detail {
-	--sd-accent: #e87e24;
-	--sd-gold: #e5a00d;
-	--sd-success: #4ade80;
-	--sd-text: #fff;
-	--sd-text-secondary: rgba(255, 255, 255, 0.7);
-	--sd-text-muted: rgba(255, 255, 255, 0.4);
+	--sd-accent: var(--color-accent);
+	--sd-gold: var(--color-gold);
+	--sd-success: var(--color-success);
+	--sd-text: var(--color-text-primary);
+	--sd-text-secondary: var(--color-text-secondary);
+	--sd-text-muted: var(--color-text-muted);
 	--sd-text-dim: rgba(255, 255, 255, 0.3);
 	--sd-surface: rgba(255, 255, 255, 0.08);
 	--sd-surface-hover: rgba(255, 255, 255, 0.15);
-	--sd-border: rgba(255, 255, 255, 0.1);
-	--sd-error: #ff6b6b;
+	--sd-border: var(--color-border-subtle);
+	--sd-error: var(--color-error);
 	--sd-surface-dark: #1a1a2e;
 	--sd-scrim: rgba(0, 0, 0, 0.7);
 	position: fixed;
@@ -2383,7 +2383,7 @@ img.browse__search-poster {
 .show-detail__title {
 	font-size: 48px;
 	font-weight: 700;
-	color: var(--sd-text);
+	color: var(--color-text-primary);
 	line-height: 1.05;
 	margin: 0 0 10px;
 	text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8);
@@ -2396,7 +2396,7 @@ img.browse__search-poster {
 	-webkit-flex-wrap: wrap;
 	flex-wrap: wrap;
 	font-size: 24px;
-	color: var(--sd-text-secondary);
+	color: var(--color-text-secondary);
 	margin-bottom: 12px;
 }
 .show-detail__meta > * {
@@ -2415,18 +2415,18 @@ img.browse__search-poster {
 	letter-spacing: 1px;
 }
 .show-detail__status--returning {
-	color: var(--sd-success);
+	color: var(--color-success);
 }
 .show-detail__status--ended {
-	color: var(--sd-text-muted);
+	color: var(--color-text-muted);
 }
 .show-detail__server-badge {
 	font-size: 24px;
-	color: var(--sd-accent);
+	color: var(--color-accent);
 	margin-top: 8px;
 }
 .show-detail__server-badge--error {
-	color: var(--sd-error);
+	color: var(--color-error);
 }
 .show-detail__synopsis {
 	font-size: 24px;
@@ -2455,7 +2455,7 @@ img.browse__search-poster {
 	border-radius: 10px;
 	border: 2px solid transparent;
 	background: var(--sd-surface);
-	color: var(--sd-text);
+	color: var(--color-text-primary);
 	font-size: 24px;
 	font-family: inherit;
 	cursor: pointer;
@@ -2464,7 +2464,7 @@ img.browse__search-poster {
 	transition: transform 200ms ease-out, opacity 200ms ease-out, border-color 200ms ease-out;
 }
 .show-detail__action-btn--focused {
-	border-color: var(--sd-text);
+	border-color: var(--color-text-primary);
 	background: var(--sd-surface-hover);
 	-webkit-transform: scale(1.04);
 	transform: scale(1.04);
@@ -2474,7 +2474,7 @@ img.browse__search-poster {
 	border-color: rgba(232, 126, 36, 0.5);
 }
 .show-detail__action-btn--primary.show-detail__action-btn--focused {
-	border-color: var(--sd-accent);
+	border-color: var(--color-accent);
 	background: rgba(232, 126, 36, 0.4);
 }
 
@@ -2525,19 +2525,19 @@ img.browse__search-poster {
 	transform: scale(1.02);
 }
 .show-detail__season-item--actions {
-	color: var(--sd-text-muted);
+	color: var(--color-text-muted);
 	font-style: italic;
 	text-align: center;
 }
 .show-detail__season-label {
 	font-size: 24px;
 	font-weight: 600;
-	color: var(--sd-text);
+	color: var(--color-text-primary);
 	margin: 0;
 }
 .show-detail__season-count {
 	font-size: 24px;
-	color: var(--sd-text-muted);
+	color: var(--color-text-muted);
 	margin: 2px 0 0;
 }
 .show-detail__season-progress {
@@ -2549,7 +2549,7 @@ img.browse__search-poster {
 }
 .show-detail__season-progress-fill {
 	height: 100%;
-	background: var(--sd-accent);
+	background: var(--color-accent);
 	border-radius: 2px;
 }
 
@@ -2634,7 +2634,7 @@ img.browse__search-poster {
 .show-detail__ep-title {
 	font-size: 26px;
 	font-weight: 600;
-	color: var(--sd-text);
+	color: var(--color-text-primary);
 	margin: 0 0 4px;
 	white-space: nowrap;
 	overflow: hidden;
@@ -2673,16 +2673,16 @@ img.browse__search-poster {
 	min-width: 140px;
 }
 .show-detail__ep-watched {
-	color: var(--sd-success);
+	color: var(--color-success);
 	font-size: 24px;
 }
 .show-detail__ep-on-server {
 	font-size: 24px;
-	color: var(--sd-accent);
+	color: var(--color-accent);
 }
 .show-detail__ep-downloading {
 	font-size: 24px;
-	color: var(--sd-gold);
+	color: var(--color-gold);
 }
 .show-detail__ep-airdate {
 	font-size: 24px;
@@ -2699,7 +2699,7 @@ img.browse__search-poster {
 }
 .show-detail__ep-progress-fill {
 	height: 100%;
-	background: var(--sd-gold);
+	background: var(--color-gold);
 	border-radius: 2px;
 }
 .show-detail__ep-progress-pct {
@@ -2724,18 +2724,18 @@ img.browse__search-poster {
 	transform: translate(-50%, -50%);
 	background: rgba(0, 0, 0, 0.95);
 	border-radius: 12px;
-	border: 1px solid var(--sd-border);
+	border: 1px solid var(--color-border-subtle);
 	padding: 24px;
 	min-width: 300px;
 }
 .show-detail__overlay-title {
 	font-size: 26px;
-	color: var(--sd-text);
+	color: var(--color-text-primary);
 	margin: 0 0 16px;
 }
 .show-detail__overlay-warn {
 	font-size: 24px;
-	color: var(--sd-error);
+	color: var(--color-error);
 	margin: 0 0 20px;
 	line-height: 1.4;
 }
@@ -2767,13 +2767,13 @@ img.browse__search-poster {
 .show-detail__tagline {
 	font-size: 24px;
 	font-style: italic;
-	color: var(--sd-text-secondary);
+	color: var(--color-text-secondary);
 	margin: 0 0 8px;
 	line-height: 1.3;
 }
 .show-detail__genres {
 	font-size: 24px;
-	color: var(--sd-text-muted);
+	color: var(--color-text-muted);
 	margin: 0 0 20px;
 }
 .show-detail__section {
@@ -2782,7 +2782,7 @@ img.browse__search-poster {
 .show-detail__section-title {
 	font-size: 28px;
 	font-weight: 600;
-	color: var(--sd-text);
+	color: var(--color-text-primary);
 	margin: 0 0 12px;
 }
 .show-detail__row-wrap {
@@ -2804,7 +2804,7 @@ img.browse__search-poster {
 	transition: transform 200ms ease-out, border-color 200ms ease-out;
 }
 .show-detail__card--focused {
-	border-color: var(--sd-text);
+	border-color: var(--color-text-primary);
 	-webkit-transform: scale(1.06);
 	transform: scale(1.06);
 }
@@ -2849,7 +2849,7 @@ img.browse__search-poster {
 }
 .show-detail__card-name {
 	font-size: 24px;
-	color: var(--sd-text);
+	color: var(--color-text-primary);
 	margin: 6px 0 0;
 	white-space: nowrap;
 	overflow: hidden;
@@ -2857,7 +2857,7 @@ img.browse__search-poster {
 }
 .show-detail__card-sub {
 	font-size: 24px;
-	color: var(--sd-text-muted);
+	color: var(--color-text-muted);
 	margin: 2px 0 0;
 	white-space: nowrap;
 	overflow: hidden;
