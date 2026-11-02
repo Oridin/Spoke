@@ -96,6 +96,7 @@ interface Props {
 	radarrUrl?: string;
 	radarrKey?: string;
 	enableDeleteActions?: boolean;
+	hasFetchbox?: boolean;
 }
 
 /** OLED shift: the offset (px at 1080p) of the clock and the apps, changed once a minute through a small cycle. null = off. */
@@ -114,9 +115,13 @@ function useShift (on: boolean): {x: number; y: number} | null {
 /** The home screen: a clock and the tiles along the bottom, in one row or two.
  *  Left/Right move along a row, Up/Down change row (two rows), OK opens, holding OK opens the app's menu.
  *  Back opens the Recent apps panel. */
-export function Home ({items, timeFormat, appearance, active, paused, onActivate, onLongPress, onBack, wake, focus, weather, trending, trendingConfig, installedAppIds, onLaunch, onSeedbox, cinemaConfig, onToast, apiKey, allowShell, providerIds, plexUrl, plexToken, showHidden, onRelockHidden, sonarrUrl, sonarrKey, radarrUrl, radarrKey, enableDeleteActions}: Props) {
+export function Home ({items, timeFormat, appearance, active, paused, onActivate, onLongPress, onBack, wake, focus, weather, trending, trendingConfig, installedAppIds, onLaunch, onSeedbox, cinemaConfig, onToast, apiKey, allowShell, providerIds, plexUrl, plexToken, showHidden, onRelockHidden, sonarrUrl, sonarrKey, radarrUrl, radarrKey, enableDeleteActions, hasFetchbox}: Props) {
 	const cinemaOn = !!(cinemaConfig && cinemaConfig.on && trending && trending.shows.length + trending.movies.length > 0);
+	const autoHide = cinemaOn && !!(cinemaConfig && cinemaConfig.autoHideBar);
 	const [cinemaActive, setCinemaActive] = useState(false);
+	const [barHidden, setBarHidden] = useState(false);
+	const [hintVisible, setHintVisible] = useState(false);
+	const hintTimer = useRef(0);
 	const [plexPlay, setPlexPlay] = useState<{ratingKey: string; title: string} | null>(null);
 	const now = useClock(paused);
 	const [position, setPosition] = useState<RowsPosition>(initialPosition);
@@ -171,8 +176,28 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 		};
 	}, [appearance.quietSec, active, paused, wake]);
 
+	// Auto-hide bar: slide out 300ms after Cinema takes focus, slide in immediately when bar regains focus
+	useEffect(() => {
+		if (!autoHide) { setBarHidden(false); return undefined; }
+		if (cinemaActive) {
+			const t = window.setTimeout(() => setBarHidden(true), 300);
+			return () => window.clearTimeout(t);
+		}
+		setBarHidden(false);
+		return undefined;
+	}, [cinemaActive, autoHide]);
+
+	// Hint chevron: flash briefly on mount and when cinemaActive changes to true
+	useEffect(() => {
+		if (!autoHide || !cinemaActive) return undefined;
+		setHintVisible(true);
+		window.clearTimeout(hintTimer.current);
+		hintTimer.current = window.setTimeout(() => setHintVisible(false), 3000);
+		return () => window.clearTimeout(hintTimer.current);
+	}, [cinemaActive, autoHide]);
+
 	// Home pressed (the launcher comes to the front): start again at the first tile.
-	useEffect(() => { setPosition(initialPosition()); }, [wake]);
+	useEffect(() => { setCinemaActive(false); setPosition(initialPosition()); }, [wake]);
 
 	// A tile was moved: the highlight follows it to its new place.
 	useEffect(() => {
@@ -220,12 +245,12 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 	});
 	const rowStyle = [`left:${appearance.sideMargin}px`, `right:${appearance.sideMargin}px`, `bottom:${appearance.bottomMargin}px`, rowVars.css].filter(Boolean).join(';');
 	const shiftVars = varScope('shift', shift ? {'--shift-x': `${shift.x}px`, '--shift-y': `${shift.y}px`} : {});
-	const classes = [rowVars.cls, 'rows', !appearance.showLabels && 'rows--no-labels', sizes.length > 1 && 'rows--multi', appearance.iconOpacity < 100 && 'rows--dim', quiet && 'rows--quiet', labelColorValue(appearance.labelColor) && 'rows--label-color', appearance.tileShape !== 'rounded' && `rows--shape-${appearance.tileShape}`, cinemaOn && 'rows--cinema'].filter(Boolean).join(' ');
+	const classes = [rowVars.cls, 'rows', !appearance.showLabels && 'rows--no-labels', sizes.length > 1 && 'rows--multi', appearance.iconOpacity < 100 && 'rows--dim', quiet && 'rows--quiet', labelColorValue(appearance.labelColor) && 'rows--label-color', appearance.tileShape !== 'rounded' && `rows--shape-${appearance.tileShape}`, cinemaOn && 'rows--cinema', barHidden && 'rows--bar-hidden'].filter(Boolean).join(' ');
 
 	return (
 		<div class={`screen${active ? '' : ' screen--away'}${shift ? ' screen--shift' : ''}${shiftVars.cls ? ' ' + shiftVars.cls : ''}`} style={shiftVars.css || undefined}>
 			{cinemaOn && trending ? (
-				<CinemaPanel trending={trending} installedAppIds={installedAppIds} onLaunch={onLaunch} onToast={onToast} active={active && cinemaActive && !plexPlay} onExitDown={() => setCinemaActive(false)} rowAreaPx={appearance.bottomMargin + tileSize + (appearance.showLabels ? 32 : 8) + 24} apiKey={apiKey || ''} allowShell={!!allowShell} providerIds={providerIds || []} plexUrl={plexUrl || ''} plexToken={plexToken || ''} showHidden={!!showHidden} onRelockHidden={onRelockHidden || (() => {})} sonarrUrl={sonarrUrl || ''} sonarrKey={sonarrKey || ''} radarrUrl={radarrUrl || ''} radarrKey={radarrKey || ''} enableDeleteActions={!!enableDeleteActions} onPlayPlex={function (rk, t) { setPlexPlay({ratingKey: rk, title: t}); }} />
+				<CinemaPanel trending={trending} installedAppIds={installedAppIds} onLaunch={onLaunch} onToast={onToast} active={active && cinemaActive && !plexPlay} onExitDown={() => setCinemaActive(false)} rowAreaPx={autoHide ? 0 : appearance.bottomMargin + tileSize + (appearance.showLabels ? 32 : 8) + 24} apiKey={apiKey || ''} allowShell={!!allowShell} providerIds={providerIds || []} plexUrl={plexUrl || ''} plexToken={plexToken || ''} showHidden={!!showHidden} onRelockHidden={onRelockHidden || (() => {})} sonarrUrl={sonarrUrl || ''} sonarrKey={sonarrKey || ''} radarrUrl={radarrUrl || ''} radarrKey={radarrKey || ''} enableDeleteActions={!!enableDeleteActions} hasFetchbox={!!hasFetchbox} onPlayPlex={function (rk, t) { setPlexPlay({ratingKey: rk, title: t}); }} />
 			) : (
 				<>
 					<Clock now={now} format={timeFormat} config={appearance.clock} weather={weather} />
@@ -233,7 +258,8 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 					{trending && trendingConfig && trending.movies.length > 0 && <TrendingSidebar title="Trending Movies" shows={trending.movies.slice(0, trendingConfig.maxMovies)} side="right" config={trendingConfig} installedAppIds={installedAppIds} onLaunch={onLaunch} onSeedbox={onSeedbox} plexIdx={plexIdx} />}
 				</>
 			)}
-			<div class={classes} style={rowStyle}>
+			{autoHide && !barHidden && <div class="rows-scrim" />}
+			<div class={classes} style={rowStyle} aria-hidden={barHidden || undefined}>
 				{sizes.map((size, r) => {
 					const start = offsets[r];
 					return (
@@ -251,6 +277,7 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 					);
 				})}
 			</div>
+			{autoHide && <div class={'rows-hint' + (hintVisible ? ' rows-hint--visible' : '')} />}
 			{plexPlay && <PlexPlayer plexUrl={plexUrl || ''} plexToken={plexToken || ''} ratingKey={plexPlay.ratingKey} title={plexPlay.title} onClose={function () { setPlexPlay(null); }} onToast={onToast} />}
 		</div>
 	);

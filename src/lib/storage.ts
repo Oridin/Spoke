@@ -133,6 +133,7 @@ export interface TrendingConfig {
 export interface CinemaConfig {
 	on: boolean;
 	enableDeleteActions: boolean;
+	autoHideBar: boolean;
 }
 
 export interface ConnectionsConfig {
@@ -253,7 +254,8 @@ export const DEFAULT_TRENDING: TrendingConfig = {
 
 export const DEFAULT_CINEMA: CinemaConfig = {
 	on: false,
-	enableDeleteActions: false
+	enableDeleteActions: false,
+	autoHideBar: true
 };
 
 export const DEFAULT_CONNECTIONS: ConnectionsConfig = {
@@ -435,7 +437,8 @@ export function loadConfig (fromObject?: Record<string, unknown>): UserConfig {
 			})(),
 				cinema: {
 					on: !!(parsed.cinema && (parsed.cinema as Partial<CinemaConfig>).on),
-					enableDeleteActions: !!(parsed.cinema && (parsed.cinema as Partial<CinemaConfig>).enableDeleteActions)
+					enableDeleteActions: !!(parsed.cinema && (parsed.cinema as Partial<CinemaConfig>).enableDeleteActions),
+					autoHideBar: parsed.cinema && (parsed.cinema as Partial<CinemaConfig>).autoHideBar === false ? false : true
 				},
 				connections: (() => {
 					const cx: Partial<ConnectionsConfig> = (parsed as {connections?: Partial<ConnectionsConfig>}).connections || {};

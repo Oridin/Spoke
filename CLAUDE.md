@@ -101,3 +101,8 @@ Configured in Settings → Connections. Stored in localStorage via `lib/storage.
 - Animate only `transform` and `opacity` (GPU-composited, no reflow)
 - Overlays must capture keys (`useKeyTrap`)
 - No delete actions shown in browse/cinema panels (only in Watchlist with `enableDeleteActions`)
+
+## Plugins
+
+- **Impeccable** v4.8.0 (commit `e89e3ada3e`) — design skill by Paul Bakaus. Reviewed 2026-11-01. Installed project-scoped via marketplace. For visual design work only: must never change navigation, focus logic, data, or behavior unless explicitly asked. Hooks run a design anti-pattern detector after Edit/Write on UI files; disable with `/impeccable hooks off`.
+- **Ponytail** — reviewed and declined (2026-11-01). Too invasive for this project: injects rules into every prompt/subagent, optional telemetry webhook, conflicts with active feature-building workflow.

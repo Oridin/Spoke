@@ -465,10 +465,36 @@ export function radarrQualityProfiles (conn: ArrConn): Promise<{id: number; name
 }
 
 // ---------------------------------------------------------------------------
-// Watchlist helpers
+// Quality profile resolution
 // ---------------------------------------------------------------------------
 
-var HD_1080P_PROFILE = 4;
+var PROFILE_NAME = 'HD-1080p';
+var profileCache: Record<string, Promise<number>> = {};
+
+function resolveProfileId (conn: ArrConn): Promise<number> {
+	var cacheKey = conn.url;
+	if (cacheKey in profileCache) return profileCache[cacheKey];
+	profileCache[cacheKey] = arrGet<{id: number; name: string}[]>(conn, '/api/v3/qualityprofile').then(function (profiles) {
+		var matches: {id: number; name: string}[] = [];
+		for (var i = 0; i < profiles.length; i++) {
+			if (profiles[i].name === PROFILE_NAME) matches.push(profiles[i]);
+		}
+		if (matches.length === 1) return matches[0].id;
+		delete profileCache[cacheKey];
+		if (matches.length === 0) return Promise.reject(new Error("Quality profile '" + PROFILE_NAME + "' not found"));
+		return Promise.reject(new Error("Quality profile '" + PROFILE_NAME + "' is ambiguous (" + matches.length + " matches)"));
+	}).catch(function (e: Error) {
+		delete profileCache[cacheKey];
+		return Promise.reject(e);
+	}) as Promise<number>;
+	return profileCache[cacheKey];
+}
+
+export {resolveProfileId};
+
+// ---------------------------------------------------------------------------
+// Watchlist helpers
+// ---------------------------------------------------------------------------
 
 export function sonarrConn (connections: {sonarrUrl: string; sonarrKey: string}): ArrConn {
 	return {url: connections.sonarrUrl, key: connections.sonarrKey};
@@ -556,28 +582,30 @@ function seasonFlagsForScope (seasons: SonarrSeason[], scope: MonitorScope): Son
 }
 
 export function watchlistAddSeries (conn: ArrConn, tvdbId: number, existing: SonarrSeries | null, monitor: MonitorScope): Promise<WatchlistAddResult> {
-	if (existing) {
-		var updated = Object.assign({}, existing, {monitored: true});
-		if (existing.qualityProfileId === 1) updated.qualityProfileId = HD_1080P_PROFILE;
-		if (updated.seasons) updated.seasons = seasonFlagsForScope(updated.seasons, monitor);
-		return sonarrPutSeries(conn, updated).then(function (series) {
-			return applyEpisodeMonitoring(conn, series.id, monitor).then(function (counts) {
-				return {title: series.title, monitoredCount: counts.monitoredCount, totalCount: counts.totalCount, isNew: false};
+	return resolveProfileId(conn).then(function (profileId) {
+		if (existing) {
+			var updated = Object.assign({}, existing, {monitored: true});
+			if (existing.qualityProfileId === 1) updated.qualityProfileId = profileId;
+			if (updated.seasons) updated.seasons = seasonFlagsForScope(updated.seasons, monitor);
+			return sonarrPutSeries(conn, updated).then(function (series) {
+				return applyEpisodeMonitoring(conn, series.id, monitor).then(function (counts) {
+					return {title: series.title, monitoredCount: counts.monitoredCount, totalCount: counts.totalCount, isNew: false};
+				});
 			});
-		});
-	}
-	return sonarrLookup(conn, tvdbId).then(function (results) {
-		if (!results.length) return Promise.reject(new Error('Series not found in Sonarr'));
-		var series = results[0];
-		series.qualityProfileId = HD_1080P_PROFILE;
-		series.monitored = true;
-		return sonarrAddSeries(conn, series, monitor).then(function (added) {
-			return sonarrGetEpisodes(conn, added.id).then(function (episodes) {
-				var monitoredCount = 0;
-				for (var i = 0; i < episodes.length; i++) { if (episodes[i].monitored) monitoredCount++; }
-				return {title: added.title, monitoredCount: monitoredCount, totalCount: episodes.length, isNew: true};
-			}).catch(function () {
-				return {title: added.title, monitoredCount: -1, totalCount: -1, isNew: true};
+		}
+		return sonarrLookup(conn, tvdbId).then(function (results) {
+			if (!results.length) return Promise.reject(new Error('Series not found in Sonarr'));
+			var series = results[0];
+			series.qualityProfileId = profileId;
+			series.monitored = true;
+			return sonarrAddSeries(conn, series, monitor).then(function (added) {
+				return sonarrGetEpisodes(conn, added.id).then(function (episodes) {
+					var monitoredCount = 0;
+					for (var i = 0; i < episodes.length; i++) { if (episodes[i].monitored) monitoredCount++; }
+					return {title: added.title, monitoredCount: monitoredCount, totalCount: episodes.length, isNew: true};
+				}).catch(function () {
+					return {title: added.title, monitoredCount: -1, totalCount: -1, isNew: true};
+				});
 			});
 		});
 	});
@@ -598,20 +626,22 @@ export function watchlistAddSeriesByTmdb (conn: ArrConn, tmdbId: number, monitor
 }
 
 export function watchlistAddMovie (conn: ArrConn, tmdbId: number, existing: RadarrMovie | null): Promise<WatchlistAddResult> {
-	if (existing) {
-		var updated = Object.assign({}, existing, {monitored: true});
-		if (existing.qualityProfileId === 1) updated.qualityProfileId = HD_1080P_PROFILE;
-		return radarrPutMovie(conn, updated).then(function (movie) {
-			return {title: movie.title, monitoredCount: 1, totalCount: 1, isNew: false};
-		});
-	}
-	return radarrLookup(conn, tmdbId).then(function (results) {
-		if (!results.length) return Promise.reject(new Error('Movie not found in Radarr'));
-		var movie = results[0];
-		movie.qualityProfileId = HD_1080P_PROFILE;
-		movie.monitored = true;
-		return radarrAddMovie(conn, movie, false).then(function (added) {
-			return {title: added.title, monitoredCount: 1, totalCount: 1, isNew: true};
+	return resolveProfileId(conn).then(function (profileId) {
+		if (existing) {
+			var updated = Object.assign({}, existing, {monitored: true});
+			if (existing.qualityProfileId === 1) updated.qualityProfileId = profileId;
+			return radarrPutMovie(conn, updated).then(function (movie) {
+				return {title: movie.title, monitoredCount: 1, totalCount: 1, isNew: false};
+			});
+		}
+		return radarrLookup(conn, tmdbId).then(function (results) {
+			if (!results.length) return Promise.reject(new Error('Movie not found in Radarr'));
+			var movie = results[0];
+			movie.qualityProfileId = profileId;
+			movie.monitored = true;
+			return radarrAddMovie(conn, movie, false).then(function (added) {
+				return {title: added.title, monitoredCount: 1, totalCount: 1, isNew: true};
+			});
 		});
 	});
 }
@@ -679,30 +709,32 @@ export interface DownloadMovieResult {
 }
 
 export function downloadMovie (conn: ArrConn, tmdbId: number): Promise<DownloadMovieResult> {
-	return radarrLookup(conn, tmdbId).then(function (results) {
-		if (!results.length) return Promise.reject(new Error('Movie not found'));
-		var looked = results[0];
-		var existingProm: Promise<RadarrMovie | null> = looked.id && looked.id > 0
-			? radarrGetMovieById(conn, looked.id)
-			: Promise.resolve(null);
-		return existingProm.then(function (existing) {
-			if (existing && existing.hasFile) {
-				return {title: existing.title, movieId: existing.id, commandId: 0, alreadyHasFile: true, qualityUpgraded: false};
-			}
-			var qualityUpgraded = false;
-			var addProm: Promise<RadarrMovie>;
-			if (existing) {
-				var updated = Object.assign({}, existing, {monitored: true});
-				if (existing.qualityProfileId === 1) { updated.qualityProfileId = HD_1080P_PROFILE; qualityUpgraded = true; }
-				addProm = radarrPutMovie(conn, updated);
-			} else {
-				looked.qualityProfileId = HD_1080P_PROFILE;
-				looked.monitored = true;
-				addProm = radarrAddMovie(conn, looked, false);
-			}
-			return addProm.then(function (added) {
-				return radarrCommand(conn, 'MoviesSearch', {movieIds: [added.id]}).then(function (cmd) {
-					return {title: added.title, movieId: added.id, commandId: cmd.id, alreadyHasFile: false, qualityUpgraded: qualityUpgraded};
+	return resolveProfileId(conn).then(function (profileId) {
+		return radarrLookup(conn, tmdbId).then(function (results) {
+			if (!results.length) return Promise.reject(new Error('Movie not found'));
+			var looked = results[0];
+			var existingProm: Promise<RadarrMovie | null> = looked.id && looked.id > 0
+				? radarrGetMovieById(conn, looked.id)
+				: Promise.resolve(null);
+			return existingProm.then(function (existing) {
+				if (existing && existing.hasFile) {
+					return {title: existing.title, movieId: existing.id, commandId: 0, alreadyHasFile: true, qualityUpgraded: false};
+				}
+				var qualityUpgraded = false;
+				var addProm: Promise<RadarrMovie>;
+				if (existing) {
+					var updated = Object.assign({}, existing, {monitored: true});
+					if (existing.qualityProfileId === 1) { updated.qualityProfileId = profileId; qualityUpgraded = true; }
+					addProm = radarrPutMovie(conn, updated);
+				} else {
+					looked.qualityProfileId = profileId;
+					looked.monitored = true;
+					addProm = radarrAddMovie(conn, looked, false);
+				}
+				return addProm.then(function (added) {
+					return radarrCommand(conn, 'MoviesSearch', {movieIds: [added.id]}).then(function (cmd) {
+						return {title: added.title, movieId: added.id, commandId: cmd.id, alreadyHasFile: false, qualityUpgraded: qualityUpgraded};
+					});
 				});
 			});
 		});
@@ -774,22 +806,23 @@ export function downloadSeriesPrep (conn: ArrConn, id: number | {tvdbId: number}
 }
 
 export function downloadSeriesListEpisodes (conn: ArrConn, id: number | {tvdbId: number}, seasonNumber: number): Promise<SonarrEpisode[]> {
-	return sonarrGetSeries(conn).then(function (allSeries) {
-		return dlLookup(conn, id).then(function (results) {
-			if (!results.length) return Promise.reject(new Error('Series not found'));
-			var looked = results[0];
-			var existing: SonarrSeries | null = null;
-			for (var j = 0; j < allSeries.length; j++) {
-				if (allSeries[j].tvdbId === looked.tvdbId) { existing = allSeries[j]; break; }
-			}
-			var seriesProm: Promise<SonarrSeries>;
-			if (existing) {
-				seriesProm = Promise.resolve(existing);
-			} else {
-				looked.qualityProfileId = HD_1080P_PROFILE;
-				looked.monitored = false;
-				seriesProm = sonarrAddSeries(conn, looked, 'none');
-			}
+	return resolveProfileId(conn).then(function (profileId) {
+		return sonarrGetSeries(conn).then(function (allSeries) {
+			return dlLookup(conn, id).then(function (results) {
+				if (!results.length) return Promise.reject(new Error('Series not found'));
+				var looked = results[0];
+				var existing: SonarrSeries | null = null;
+				for (var j = 0; j < allSeries.length; j++) {
+					if (allSeries[j].tvdbId === looked.tvdbId) { existing = allSeries[j]; break; }
+				}
+				var seriesProm: Promise<SonarrSeries>;
+				if (existing) {
+					seriesProm = Promise.resolve(existing);
+				} else {
+					looked.qualityProfileId = profileId;
+					looked.monitored = false;
+					seriesProm = sonarrAddSeries(conn, looked, 'none');
+				}
 			return seriesProm.then(function (series) {
 				return sonarrGetEpisodes(conn, series.id).then(function (episodes) {
 					var filtered: SonarrEpisode[] = [];
@@ -801,6 +834,7 @@ export function downloadSeriesListEpisodes (conn: ArrConn, id: number | {tvdbId:
 				});
 			});
 		});
+	});
 	});
 }
 
@@ -815,36 +849,37 @@ export interface DownloadSeriesResult {
 }
 
 export function downloadSeries (conn: ArrConn, id: number | {tvdbId: number}, scope: DownloadScope): Promise<DownloadSeriesResult> {
-	return sonarrGetSeries(conn).then(function (allSeries) {
-		return dlLookup(conn, id).then(function (results) {
-			if (!results.length) return Promise.reject(new Error('Series not found'));
-			var looked = results[0];
-			var existing: SonarrSeries | null = null;
-			for (var j = 0; j < allSeries.length; j++) {
-				if (allSeries[j].tvdbId === looked.tvdbId) { existing = allSeries[j]; break; }
-			}
-			var qualityUpgraded = false;
-			var isSeason = typeof scope === 'object' && 'season' in scope;
-			var isEpisode = typeof scope === 'object' && 'episode' in scope;
-			var seasonScope: MonitorScope = scope === 'lastSeason' ? 'lastSeason' : scope === 'all' ? 'all' : 'none';
-			var ensureProm: Promise<SonarrSeries>;
-			if (existing) {
-				var updated = Object.assign({}, existing, {monitored: true});
-				if (existing.qualityProfileId === 1) { updated.qualityProfileId = HD_1080P_PROFILE; qualityUpgraded = true; }
-				if (!isSeason && !isEpisode && updated.seasons) updated.seasons = seasonFlagsForScope(updated.seasons, seasonScope);
-				if (isSeason && updated.seasons) {
-					var targetSn = (scope as {season: number}).season;
-					updated.seasons = updated.seasons.map(function (s) {
-						return Object.assign({}, s, {monitored: s.seasonNumber === targetSn ? true : s.monitored});
-					});
+	return resolveProfileId(conn).then(function (profileId) {
+		return sonarrGetSeries(conn).then(function (allSeries) {
+			return dlLookup(conn, id).then(function (results) {
+				if (!results.length) return Promise.reject(new Error('Series not found'));
+				var looked = results[0];
+				var existing: SonarrSeries | null = null;
+				for (var j = 0; j < allSeries.length; j++) {
+					if (allSeries[j].tvdbId === looked.tvdbId) { existing = allSeries[j]; break; }
 				}
-				ensureProm = sonarrPutSeries(conn, updated);
-			} else {
-				looked.qualityProfileId = HD_1080P_PROFILE;
-				looked.monitored = true;
-				ensureProm = sonarrAddSeries(conn, looked, isSeason || isEpisode ? 'none' : seasonScope);
-			}
-			return ensureProm.then(function (series) {
+				var qualityUpgraded = false;
+				var isSeason = typeof scope === 'object' && 'season' in scope;
+				var isEpisode = typeof scope === 'object' && 'episode' in scope;
+				var seasonScope: MonitorScope = scope === 'lastSeason' ? 'lastSeason' : scope === 'all' ? 'all' : 'none';
+				var ensureProm: Promise<SonarrSeries>;
+				if (existing) {
+					var updated = Object.assign({}, existing, {monitored: true});
+					if (existing.qualityProfileId === 1) { updated.qualityProfileId = profileId; qualityUpgraded = true; }
+					if (!isSeason && !isEpisode && updated.seasons) updated.seasons = seasonFlagsForScope(updated.seasons, seasonScope);
+					if (isSeason && updated.seasons) {
+						var targetSn = (scope as {season: number}).season;
+						updated.seasons = updated.seasons.map(function (s) {
+							return Object.assign({}, s, {monitored: s.seasonNumber === targetSn ? true : s.monitored});
+						});
+					}
+					ensureProm = sonarrPutSeries(conn, updated);
+				} else {
+					looked.qualityProfileId = profileId;
+					looked.monitored = true;
+					ensureProm = sonarrAddSeries(conn, looked, isSeason || isEpisode ? 'none' : seasonScope);
+				}
+				return ensureProm.then(function (series) {
 				return sonarrGetEpisodes(conn, series.id).then(function (episodes) {
 					var toMonitor: number[] = [];
 					var toUnmonitor: number[] = [];
@@ -905,6 +940,7 @@ export function downloadSeries (conn: ArrConn, id: number | {tvdbId: number}, sc
 				});
 			});
 		});
+	});
 	});
 }
 

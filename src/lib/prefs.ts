@@ -358,6 +358,8 @@ const CINEMA_PREFS: Pref[] = [
 		description: 'Change the PIN that protects the hidden libraries. Requires the current PIN first.',
 		text: () => 'Change'
 	},
+	toggle('autoHideBar', 'cinema', 'Auto-hide app bar', 'Hide the app bar when Cinema mode is focused. The bar slides up when you navigate back to it.',
+		(c) => c.cinema.autoHideBar, (c, v) => ({...c, cinema: {...c.cinema, autoHideBar: v}})),
 	toggle('enableDeleteActions', 'cinema', 'Delete actions', 'Allow removing titles and their files from the library via the Watchlist detail panel. Off by default as a safety measure.',
 		(c) => c.cinema.enableDeleteActions, (c, v) => ({...c, cinema: {...c.cinema, enableDeleteActions: v}})),
 ];

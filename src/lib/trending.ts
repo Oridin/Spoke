@@ -88,6 +88,11 @@ export function backdropUrl (path: string | null): string | null {
 	return 'https://image.tmdb.org/t/p/w1280' + path;
 }
 
+export function profileUrl (path: string | null): string | null {
+	if (!path) return null;
+	return 'https://image.tmdb.org/t/p/w185' + path;
+}
+
 export function parseTrendingList (json: string, mediaType: MediaType, limit: number): TrendingShow[] {
 	try {
 		const data = JSON.parse(json);

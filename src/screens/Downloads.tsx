@@ -47,7 +47,7 @@ interface ConfirmState {
 
 var REFRESH_INTERVAL = 10000;
 var ROW_H = 56;
-var VISIBLE_ROWS = 14;
+var VISIBLE_ROWS = 17;
 
 function fmtSize (bytes: number): string {
 	if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
