@@ -177,13 +177,13 @@ export const LIGHT_THEMES: ThemeName[] = ['cloud', 'sand', 'mist'];
 
 export const FONT = {
 	family: '"Inter Variable", "LG Smart UI", "Helvetica Neue", Arial, sans-serif',
-	rowLabel: 20,
-	tileLabel: 19,
+	rowLabel: 24,
+	tileLabel: 24,
 	settingsTitle: 40,
 	settingsTab: 26,
-	settingsButton: 22,
+	settingsButton: 24,
 	optionLabel: 26,
-	optionDescription: 20,
+	optionDescription: 24,
 	toast: 24
 } as const;
 

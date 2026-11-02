@@ -1164,7 +1164,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 					{seasonActionItems.map(function (item, i) {
 						var cls = 'show-detail__action-btn';
 						if (i === overlayIdx) cls += ' show-detail__action-btn--focused';
-						return <button key={item.action} class={cls} style="display:block;width:100%;margin:0 0 8px" onClick={function () {
+						return <button key={item.action} class={cls + ' show-detail__action-btn--block'} onClick={function () {
 						if (item.action === 'cancel') setOverlay(null);
 						else if (item.action === 'dl-season') doSeasonDownload();
 						else if (item.action === 'remove') { setOverlay('remove-confirm'); setOverlayIdx(0); }
@@ -1189,7 +1189,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 					{MONITOR_OPTS.map(function (opt, i) {
 						var cls = 'show-detail__action-btn';
 						if (i === overlayIdx) cls += ' show-detail__action-btn--focused';
-						return <button key={opt.key} class={cls} style="display:block;width:100%;margin:0 0 8px" onClick={function () { doWlAdd(opt.key); }}>{opt.label}</button>;
+						return <button key={opt.key} class={cls + ' show-detail__action-btn--block'} onClick={function () { doWlAdd(opt.key); }}>{opt.label}</button>;
 					})}
 				</div>
 			)}
