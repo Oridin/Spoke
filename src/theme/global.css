@@ -551,7 +551,7 @@ html, body {
 	width: 32px; height: 32px;
 	border-radius: 50%;
 	background: var(--color-switch-knob);
-	transition: transform var(--motion-focus-ms) ease-out, background var(--motion-focus-ms) ease-out;
+	transition: transform var(--motion-focus-ms) ease-out;
 }
 .option__value {
 	flex: 0 0 auto;
@@ -717,7 +717,6 @@ html, body {
 	align-items: flex-start;
 	padding: 10px 16px;
 	border-radius: 8px;
-	transition: background 150ms;
 }
 .trending__row--focused {
 	background: var(--color-tile-bg-focus);
@@ -1096,7 +1095,6 @@ html, body {
 	white-space: nowrap;
 	position: relative;
 	z-index: 1;
-	transition: color 200ms ease-out;
 }
 
 .cinema__nav--active {
@@ -1316,7 +1314,6 @@ html, body {
 	background: #1a1e26;
 	display: block;
 	border: 3px solid transparent;
-	transition: border-color 200ms ease-out;
 }
 
 img.cinema__poster {
@@ -1521,7 +1518,7 @@ img.cinema__poster--ready {
 	font-family: inherit;
 	cursor: pointer;
 	outline: none;
-	transition: transform 200ms ease-out, border-color 200ms ease-out, background 200ms ease-out;
+	transition: transform 200ms ease-out;
 }
 
 .browse__bar-btn--focused {
@@ -1681,7 +1678,7 @@ img.cinema__poster--ready {
 	border-radius: 10px;
 	border: 2px solid transparent;
 	margin-bottom: 4px;
-	transition: transform 200ms ease-out, border-color 200ms ease-out, background 200ms ease-out;
+	transition: transform 200ms ease-out;
 }
 
 .browse__search-item--focused {
@@ -1859,7 +1856,6 @@ img.browse__search-poster {
 	border-radius: 50%;
 	border: 2px solid rgba(255, 255, 255, 0.35);
 	margin: 0 8px;
-	transition: background 0.15s;
 }
 .pin-overlay__dot--filled {
 	background: var(--color-gold);
@@ -1899,7 +1895,6 @@ img.browse__search-poster {
 	-webkit-justify-content: center;
 	justify-content: center;
 	cursor: pointer;
-	transition: border-color 0.12s, background 0.12s;
 }
 .pin-overlay__key--focused {
 	border-color: var(--color-gold);
@@ -2102,7 +2097,6 @@ img.browse__search-poster {
 	padding: 10px 16px;
 	border-radius: 8px;
 	margin-bottom: 4px;
-	transition: background 0.15s;
 }
 .downloads__item--focused {
 	background: rgba(255,255,255,0.12);
@@ -2445,7 +2439,7 @@ img.browse__search-poster {
 	cursor: pointer;
 	outline: none;
 	white-space: nowrap;
-	transition: transform 200ms ease-out, opacity 200ms ease-out, border-color 200ms ease-out;
+	transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
 .show-detail__action-btn--focused {
 	border-color: var(--color-tile-border-focus);
@@ -2497,7 +2491,7 @@ img.browse__search-poster {
 	outline: none;
 	font-family: inherit;
 	background: transparent;
-	transition: transform 200ms ease-out, border-color 200ms ease-out, opacity 200ms ease-out;
+	transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
 .show-detail__season-item--active {
 	background: rgba(232, 126, 36, 0.08);
@@ -2559,7 +2553,7 @@ img.browse__search-poster {
 	padding: 12px;
 	cursor: pointer;
 	outline: none;
-	transition: transform 200ms ease-out, border-color 200ms ease-out, opacity 200ms ease-out;
+	transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
 .show-detail__episode--focused {
 	border-color: var(--color-tile-border-focus);
@@ -2783,7 +2777,7 @@ img.browse__search-poster {
 	border-radius: 8px;
 	border: 2px solid transparent;
 	padding: 4px;
-	transition: transform 200ms ease-out, border-color 200ms ease-out;
+	transition: transform 200ms ease-out;
 }
 .show-detail__card--focused {
 	border-color: var(--color-tile-border-focus);
