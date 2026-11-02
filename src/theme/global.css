@@ -462,7 +462,7 @@ html, body {
 .settings__button--focused {
 	color: var(--color-text-primary);
 	box-shadow: 0 0 0 4px var(--color-tile-border-focus);
-	transform: scale(1.06);
+	transform: scale(var(--motion-focus-scale-md));
 }
 .settings__button--active {
 	background: var(--color-button-active-bg);
@@ -1305,8 +1305,8 @@ html, body {
 }
 
 .cinema__card--focused {
-	-webkit-transform: scale(1.12);
-	transform: scale(1.12);
+	-webkit-transform: scale(var(--motion-focus-scale));
+	transform: scale(var(--motion-focus-scale));
 }
 
 .cinema__row--active .cinema__card--focused {
@@ -1341,7 +1341,7 @@ img.cinema__poster--ready {
 }
 
 .cinema__card--focused .cinema__poster {
-	border-color: #fff;
+	border-color: var(--color-tile-border-focus);
 }
 
 .cinema__card-title {
@@ -1429,10 +1429,10 @@ img.cinema__poster--ready {
 }
 
 .cinema__panel-btn--focused {
-	border-color: #fff;
+	border-color: var(--color-tile-border-focus);
 	background: rgba(255, 255, 255, 0.12);
-	-webkit-transform: scale(1.03);
-	transform: scale(1.03);
+	-webkit-transform: scale(var(--motion-focus-scale-md));
+	transform: scale(var(--motion-focus-scale-md));
 }
 
 .cinema__panel-btn-icon {
@@ -1529,11 +1529,11 @@ img.cinema__poster--ready {
 }
 
 .browse__bar-btn--focused {
-	border-color: #fff;
+	border-color: var(--color-tile-border-focus);
 	background: rgba(255, 255, 255, 0.14);
-	color: #fff;
-	-webkit-transform: scale(1.06);
-	transform: scale(1.06);
+	color: var(--color-text-primary);
+	-webkit-transform: scale(var(--motion-focus-scale-md));
+	transform: scale(var(--motion-focus-scale-md));
 }
 
 .browse__bar-btn--clear {
@@ -1605,7 +1605,7 @@ img.cinema__poster--ready {
 	right: 0;
 	bottom: 0;
 	width: 420px;
-	background: rgba(0, 0, 0, 0.92);
+	background: var(--color-surface-overlay);
 	z-index: 20;
 	overflow-y: auto;
 }
@@ -1689,10 +1689,10 @@ img.cinema__poster--ready {
 }
 
 .browse__search-item--focused {
-	border-color: #fff;
+	border-color: var(--color-tile-border-focus);
 	background: rgba(255, 255, 255, 0.08);
-	-webkit-transform: scale(1.02);
-	transform: scale(1.02);
+	-webkit-transform: scale(var(--motion-focus-scale-sm));
+	transform: scale(var(--motion-focus-scale-sm));
 }
 
 .browse__search-poster {
@@ -2014,7 +2014,7 @@ img.browse__search-poster {
 .watchlist__progress {
 	position: relative;
 	height: 32px;
-	background: rgba(255,255,255,0.1);
+	background: var(--color-border-subtle);
 	border-radius: 4px;
 	margin: 12px 0 16px;
 	overflow: hidden;
@@ -2110,6 +2110,7 @@ img.browse__search-poster {
 }
 .downloads__item--focused {
 	background: rgba(255,255,255,0.12);
+	box-shadow: 0 0 0 2px var(--color-tile-border-focus);
 }
 
 .downloads__item-title {
@@ -2140,7 +2141,7 @@ img.browse__search-poster {
 
 .downloads__bar {
 	height: 3px;
-	background: rgba(255,255,255,0.1);
+	background: var(--color-border-subtle);
 	border-radius: 2px;
 	margin-top: 6px;
 	overflow: hidden;
@@ -2323,19 +2324,6 @@ img.browse__search-poster {
 /* ---------- show detail ---------- */
 
 .show-detail {
-	--sd-accent: var(--color-accent);
-	--sd-gold: var(--color-gold);
-	--sd-success: var(--color-success);
-	--sd-text: var(--color-text-primary);
-	--sd-text-secondary: var(--color-text-secondary);
-	--sd-text-muted: var(--color-text-muted);
-	--sd-text-dim: rgba(255, 255, 255, 0.3);
-	--sd-surface: rgba(255, 255, 255, 0.08);
-	--sd-surface-hover: rgba(255, 255, 255, 0.15);
-	--sd-border: var(--color-border-subtle);
-	--sd-error: var(--color-error);
-	--sd-surface-dark: #1a1a2e;
-	--sd-scrim: rgba(0, 0, 0, 0.7);
 	position: fixed;
 	top: 0; left: 72px; right: 0; bottom: 0;
 	z-index: 30;
@@ -2454,7 +2442,7 @@ img.browse__search-poster {
 	margin-right: 16px;
 	border-radius: 10px;
 	border: 2px solid transparent;
-	background: var(--sd-surface);
+	background: rgba(255, 255, 255, 0.08);
 	color: var(--color-text-primary);
 	font-size: 24px;
 	font-family: inherit;
@@ -2464,10 +2452,10 @@ img.browse__search-poster {
 	transition: transform 200ms ease-out, opacity 200ms ease-out, border-color 200ms ease-out;
 }
 .show-detail__action-btn--focused {
-	border-color: var(--color-text-primary);
-	background: var(--sd-surface-hover);
-	-webkit-transform: scale(1.04);
-	transform: scale(1.04);
+	border-color: var(--color-tile-border-focus);
+	background: rgba(255, 255, 255, 0.15);
+	-webkit-transform: scale(var(--motion-focus-scale-md));
+	transform: scale(var(--motion-focus-scale-md));
 }
 .show-detail__action-btn--primary {
 	background: rgba(232, 126, 36, 0.25);
@@ -2519,10 +2507,10 @@ img.browse__search-poster {
 	background: rgba(232, 126, 36, 0.08);
 }
 .show-detail__season-item--focused {
-	border-color: rgba(255, 255, 255, 0.5);
+	border-color: var(--color-tile-border-focus);
 	background: rgba(255, 255, 255, 0.1);
-	-webkit-transform: scale(1.02);
-	transform: scale(1.02);
+	-webkit-transform: scale(var(--motion-focus-scale-sm));
+	transform: scale(var(--motion-focus-scale-sm));
 }
 .show-detail__season-item--actions {
 	color: var(--color-text-muted);
@@ -2542,7 +2530,7 @@ img.browse__search-poster {
 }
 .show-detail__season-progress {
 	height: 3px;
-	background: rgba(255, 255, 255, 0.1);
+	background: var(--color-border-subtle);
 	border-radius: 2px;
 	margin-top: 8px;
 	overflow: hidden;
@@ -2578,10 +2566,8 @@ img.browse__search-poster {
 	transition: transform 200ms ease-out, border-color 200ms ease-out, opacity 200ms ease-out;
 }
 .show-detail__episode--focused {
-	border-color: rgba(255, 255, 255, 0.5);
+	border-color: var(--color-tile-border-focus);
 	background: rgba(255, 255, 255, 0.06);
-	-webkit-transform: scale(1.01);
-	transform: scale(1.01);
 }
 .show-detail__episode--unaired {
 	opacity: 0.4;
@@ -2594,7 +2580,7 @@ img.browse__search-poster {
 	border-radius: 8px;
 	overflow: hidden;
 	position: relative;
-	background: var(--sd-surface-dark);
+	background: #1a1a2e;
 	margin-right: 20px;
 	-webkit-flex-shrink: 0;
 	flex-shrink: 0;
@@ -2608,7 +2594,7 @@ img.browse__search-poster {
 .show-detail__ep-placeholder {
 	width: 100%;
 	height: 100%;
-	background: var(--sd-surface-dark);
+	background: #1a1a2e;
 	display: -webkit-flex;
 	display: flex;
 	-webkit-align-items: center;
@@ -2686,14 +2672,14 @@ img.browse__search-poster {
 }
 .show-detail__ep-airdate {
 	font-size: 24px;
-	color: var(--sd-text-dim);
+	color: rgba(255, 255, 255, 0.3);
 }
 
 /* episode progress bar */
 .show-detail__ep-progress {
 	width: 120px;
 	height: 4px;
-	background: var(--sd-surface-hover);
+	background: rgba(255, 255, 255, 0.15);
 	border-radius: 2px;
 	margin-top: 6px;
 }
@@ -2713,7 +2699,7 @@ img.browse__search-poster {
 	position: fixed;
 	top: 0; left: 0; right: 0; bottom: 0;
 	z-index: 34;
-	background: var(--sd-scrim);
+	background: rgba(0, 0, 0, 0.7);
 }
 .show-detail__overlay-center {
 	position: fixed;
@@ -2722,7 +2708,7 @@ img.browse__search-poster {
 	left: 50%;
 	-webkit-transform: translate(-50%, -50%);
 	transform: translate(-50%, -50%);
-	background: rgba(0, 0, 0, 0.95);
+	background: var(--color-surface-overlay);
 	border-radius: 12px;
 	border: 1px solid var(--color-border-subtle);
 	padding: 24px;
@@ -2804,9 +2790,9 @@ img.browse__search-poster {
 	transition: transform 200ms ease-out, border-color 200ms ease-out;
 }
 .show-detail__card--focused {
-	border-color: var(--color-text-primary);
-	-webkit-transform: scale(1.06);
-	transform: scale(1.06);
+	border-color: var(--color-tile-border-focus);
+	-webkit-transform: scale(var(--motion-focus-scale-md));
+	transform: scale(var(--motion-focus-scale-md));
 }
 .show-detail__card--current {
 	opacity: 0.5;
@@ -2816,7 +2802,7 @@ img.browse__search-poster {
 	height: 162px;
 	border-radius: 6px;
 	overflow: hidden;
-	background: var(--sd-surface-dark);
+	background: #1a1a2e;
 }
 .show-detail__card-photo img {
 	width: 100%;
@@ -2827,14 +2813,14 @@ img.browse__search-poster {
 .show-detail__card-photo-empty {
 	width: 100%;
 	height: 100%;
-	background: var(--sd-surface);
+	background: rgba(255, 255, 255, 0.08);
 }
 .show-detail__card-poster {
 	width: 122px;
 	height: 183px;
 	border-radius: 6px;
 	overflow: hidden;
-	background: var(--sd-surface-dark);
+	background: #1a1a2e;
 }
 .show-detail__card-poster img {
 	width: 100%;
@@ -2845,7 +2831,7 @@ img.browse__search-poster {
 .show-detail__card-poster-empty {
 	width: 100%;
 	height: 100%;
-	background: var(--sd-surface);
+	background: rgba(255, 255, 255, 0.08);
 }
 .show-detail__card-name {
 	font-size: 24px;
