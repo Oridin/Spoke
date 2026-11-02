@@ -196,8 +196,8 @@ html, body {
 .rows-scrim {
 	position: absolute;
 	left: 0; right: 0; bottom: 0;
-	height: 260px;
-	background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 50%, transparent 100%);
+	height: 300px;
+	background: linear-gradient(to top, var(--cinema-bg, #0a0e14) 0%, var(--cinema-bg, #0a0e14) 25%, rgba(10, 14, 20, 0.85) 55%, transparent 100%);
 	z-index: 2;
 	opacity: 1;
 	transition: opacity 300ms ease-out;
@@ -1173,13 +1173,20 @@ html, body {
 	display: flex;
 	-webkit-flex-direction: column;
 	flex-direction: column;
+	transition: transform 300ms ease-out;
 }
 
-/* --- hero: 44% of cinema height, full-bleed backdrop --- */
+/* Hero collapsed: compact title strip when rows scroll past row 1 */
+.cinema__main--scrolled .cinema__hero-info { bottom: 8px; }
+.cinema__main--scrolled .cinema__hero-title { font-size: 32px; margin: 0 0 4px; }
+.cinema__main--scrolled .cinema__hero-meta { margin-bottom: 0; }
+.cinema__main--scrolled .cinema__hero-desc { display: none; }
+
+/* --- hero: 39% of cinema height, full-bleed backdrop --- */
 
 .cinema__hero {
-	-webkit-flex: 0 0 44%;
-	flex: 0 0 44%;
+	-webkit-flex: 0 0 39%;
+	flex: 0 0 39%;
 	position: relative;
 	width: 100%;
 	background: #111;
@@ -1207,16 +1214,16 @@ html, body {
 .cinema__hero-info {
 	position: absolute;
 	left: 24px;
-	bottom: 36px;
+	bottom: 28px;
 	right: 96px;
 	max-width: 700px;
 	z-index: 1;
 }
 
 .cinema__hero-title {
-	font-size: 56px;
+	font-size: 48px;
 	font-weight: 700;
-	margin: 0 0 16px;
+	margin: 0 0 14px;
 	line-height: 1.05;
 }
 

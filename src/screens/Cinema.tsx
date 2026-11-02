@@ -342,6 +342,10 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 
 	const rowScrollY = rowIdx > 0 ? rowIdx * ROW_SCROLL : 0;
 
+	const cinemaH = 1080 - (rowAreaPx || 0);
+	const heroH = Math.round(cinemaH * 0.39);
+	const heroShift = tab.id === 'home' && rowIdx > 0 ? heroH - 80 : 0;
+
 	return (
 		<div class="cinema" style={rowAreaPx ? 'bottom:' + rowAreaPx + 'px' : undefined}>
 			<nav class={'cinema__sidebar' + (zone === 'sidebar' ? ' cinema__sidebar--active' : '')}>
@@ -359,7 +363,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 				))}
 			</nav>
 
-			<div class="cinema__main">
+			<div class={'cinema__main' + (heroShift > 0 ? ' cinema__main--scrolled' : '')} style={heroShift > 0 ? 'transform:translate3d(0,-' + heroShift + 'px,0)' : undefined}>
 				{tab.id === 'browse' ? (
 					<Browse
 						apiKey={apiKey}
@@ -435,12 +439,12 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 							const fits = total <= VIEW_W;
 							const off = fits ? 0 : clamp(c * CARD_STEP + CARD_W / 2 - VIEW_W / 2, 0, Math.max(0, total - VIEW_W));
 							return (
-								<div key={ri} class={'cinema__row' + (zone === 'rows' && ri === rowIdx ? ' cinema__row--active' : '')}>
+								<div key={ri} class={'cinema__row' + (active && zone === 'rows' && ri === rowIdx ? ' cinema__row--active' : '')}>
 									<h2 class="cinema__row-title">{r.title}</h2>
 									<div class="cinema__row-viewport">
 										<div class="cinema__row-track" style={'transform:translate3d(' + (-off) + 'px,0,0)'}>
 											{r.items.map((item, ci) => {
-												const focused = zone === 'rows' && ri === rowIdx && ci === (cols[ri] || 0);
+												const focused = active && zone === 'rows' && ri === rowIdx && ci === (cols[ri] || 0);
 												const p = posterUrlXL(item.poster);
 												return (
 													<div
