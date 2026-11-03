@@ -14,6 +14,31 @@ import {
 	type SonarrSeries, type RadarrMovie, type SonarrCalendarEntry,
 	type QueueRecord, type DlSeasonInfo, type SonarrEpisode, type DownloadScope,
 } from '../lib/arrapi';
+var WL_CACHE_KEY = 'spoke_wl_cache';
+var WL_CACHE_TTL = 600000;
+
+interface WlCache {
+	ts: number;
+	series: SonarrSeries[];
+	movies: RadarrMovie[];
+	calendar: SonarrCalendarEntry[];
+}
+
+function readCache (): WlCache | null {
+	try {
+		var raw = localStorage.getItem(WL_CACHE_KEY);
+		if (!raw) return null;
+		var c: WlCache = JSON.parse(raw);
+		if (!c || !c.ts) return null;
+		return c;
+	} catch { return null; }
+}
+
+function writeCache (series: SonarrSeries[], movies: RadarrMovie[], calendar: SonarrCalendarEntry[]): void {
+	try {
+		localStorage.setItem(WL_CACHE_KEY, JSON.stringify({ts: Date.now(), series: series, movies: movies, calendar: calendar}));
+	} catch {}
+}
 
 interface Props {
 	sonarrUrl: string;
@@ -22,6 +47,7 @@ interface Props {
 	radarrKey: string;
 	active: boolean;
 	onExitLeft: () => void;
+	onExitDown?: () => void;
 	onToast: (msg: string, kind?: 'info' | 'error') => void;
 	enableDelete: boolean;
 	onOpenShowDetail?: (title: string, year: number, tvdbId?: number) => void;
@@ -73,7 +99,7 @@ var CARD_W = 200;
 var CARD_GAP = 20;
 var CARD_STEP = CARD_W + CARD_GAP;
 var VIEW_W = 1700;
-var ROW_SCROLL = 420;
+var ROW_SCROLL = 460;
 var HERO_DEBOUNCE = 250;
 var REFRESH_INTERVAL = 30000;
 
@@ -97,15 +123,18 @@ function fmtEta (iso: string | undefined): string {
 	} catch { return ''; }
 }
 
-export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, onExitLeft, onToast, enableDelete, onOpenShowDetail}: Props) {
-	var [series, setSeries] = useState<SonarrSeries[]>([]);
-	var [movies, setMovies] = useState<RadarrMovie[]>([]);
-	var [calendar, setCalendar] = useState<SonarrCalendarEntry[]>([]);
+export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, onExitLeft, onExitDown, onToast, enableDelete, onOpenShowDetail}: Props) {
+	var cached = useMemo(readCache, []);
+	var [series, setSeries] = useState<SonarrSeries[]>(function () { return cached ? cached.series : []; });
+	var [movies, setMovies] = useState<RadarrMovie[]>(function () { return cached ? cached.movies : []; });
+	var [calendar, setCalendar] = useState<SonarrCalendarEntry[]>(function () { return cached ? cached.calendar : []; });
 	var [sonarrQ, setSonarrQ] = useState<QueueRecord[]>([]);
 	var [radarrQ, setRadarrQ] = useState<QueueRecord[]>([]);
-	var [loading, setLoading] = useState(true);
+	var [loading, setLoading] = useState(!cached);
+	var [updating, setUpdating] = useState(false);
 	var [error, setError] = useState<string | null>(null);
 	var [mediaFilter] = useState<MediaFilter>('all');
+	var lastFullFetch = useRef(cached ? cached.ts : 0);
 
 	var [zone, setZone] = useState<WatchZone>('rows');
 	var [rowIdx, setRowIdx] = useState(0);
@@ -124,10 +153,11 @@ export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 	var sConn = useMemo(function () { return sonarrConn({sonarrUrl: sonarrUrl, sonarrKey: sonarrKey}); }, [sonarrUrl, sonarrKey]);
 	var rConn = useMemo(function () { return radarrConn({radarrUrl: radarrUrl, radarrKey: radarrKey}); }, [radarrUrl, radarrKey]);
 
-	var fetchAll = useCallback(function () {
+	var fetchFull = useCallback(function () {
 		var now = new Date();
 		var start = now.toISOString().slice(0, 10);
 		var end = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
+		setUpdating(true);
 		return Promise.all([
 			sonarrGetSeries(sConn).catch(function () { return [] as SonarrSeries[]; }),
 			radarrGetMovies(rConn).catch(function () { return [] as RadarrMovie[]; }),
@@ -141,34 +171,44 @@ export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 			setSonarrQ(results[3].records);
 			setRadarrQ(results[4].records);
 			setLoading(false);
+			setUpdating(false);
 			setError(null);
+			lastFullFetch.current = Date.now();
+			writeCache(results[0], results[1], results[2]);
 		}).catch(function (e) {
 			setError(e && e.message || 'Failed to load');
 			setLoading(false);
+			setUpdating(false);
+		});
+	}, [sConn, rConn, onToast]);
+
+	var fetchQueue = useCallback(function () {
+		return Promise.all([
+			sonarrQueue(sConn).catch(function () { return {records: []} as {records: QueueRecord[]}; }),
+			radarrQueue(rConn).catch(function () { return {records: []} as {records: QueueRecord[]}; }),
+		]).then(function (r) {
+			setSonarrQ(r[0].records);
+			setRadarrQ(r[1].records);
 		});
 	}, [sConn, rConn]);
 
 	useEffect(function () {
-		fetchAll();
-	}, [fetchAll]);
+		fetchFull();
+	}, [fetchFull]);
 
 	useEffect(function () {
-		if (active) fetchAll();
+		if (!active) return;
+		if (Date.now() - lastFullFetch.current > WL_CACHE_TTL) fetchFull();
+		else fetchQueue();
 	}, [active]);
 
 	useEffect(function () {
 		if (!active) return undefined;
 		var t = window.setInterval(function () {
-			Promise.all([
-				sonarrQueue(sConn).catch(function () { return {records: []} as {records: QueueRecord[]}; }),
-				radarrQueue(rConn).catch(function () { return {records: []} as {records: QueueRecord[]}; }),
-			]).then(function (r) {
-				setSonarrQ(r[0].records);
-				setRadarrQ(r[1].records);
-			});
+			fetchQueue();
 		}, REFRESH_INTERVAL);
 		return function () { window.clearInterval(t); };
-	}, [active, sConn, rConn]);
+	}, [active, fetchQueue]);
 
 	var watchItems: WatchItem[] = useMemo(function () {
 		var items: WatchItem[] = [];
@@ -357,29 +397,29 @@ export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 		if (item.sonarrSeries) {
 			var updated = Object.assign({}, item.sonarrSeries, {monitored: false});
 			sonarrPutSeries(sConn, updated)
-				.then(function () { onToast(item.title + ' removed from watchlist'); setDetail(null); fetchAll(); })
+				.then(function () { onToast(item.title + ' removed from watchlist'); setDetail(null); fetchFull(); })
 				.catch(function () { onToast('Failed to update', 'error'); });
 		} else if (item.radarrMovie) {
 			var updatedM = Object.assign({}, item.radarrMovie, {monitored: false});
 			radarrPutMovie(rConn, updatedM)
-				.then(function () { onToast(item.title + ' removed from watchlist'); setDetail(null); fetchAll(); })
+				.then(function () { onToast(item.title + ' removed from watchlist'); setDetail(null); fetchFull(); })
 				.catch(function () { onToast('Failed to update', 'error'); });
 		}
-	}, [detail, sConn, rConn, onToast, fetchAll]);
+	}, [detail, sConn, rConn, onToast, fetchFull]);
 
 	var doDelete = useCallback(function () {
 		if (!detail) return;
 		var item = detail.item;
 		if (item.sonarrSeries) {
 			sonarrDeleteSeries(sConn, item.sonarrSeries.id, true)
-				.then(function () { onToast(item.title + ' removed'); setDetail(null); fetchAll(); })
+				.then(function () { onToast(item.title + ' removed'); setDetail(null); fetchFull(); })
 				.catch(function () { onToast('Delete failed', 'error'); });
 		} else if (item.radarrMovie) {
 			radarrDeleteMovie(rConn, item.radarrMovie.id, true)
-				.then(function () { onToast(item.title + ' removed'); setDetail(null); fetchAll(); })
+				.then(function () { onToast(item.title + ' removed'); setDetail(null); fetchFull(); })
 				.catch(function () { onToast('Delete failed', 'error'); });
 		}
-	}, [detail, sConn, rConn, onToast, fetchAll]);
+	}, [detail, sConn, rConn, onToast, fetchFull]);
 
 	// --- download ---
 
@@ -559,12 +599,13 @@ export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 			}
 			else if (key === 'down') {
 				if (rowIdx < contentRows.length - 1) setRowIdx(rowIdx + 1);
+				else if (onExitDown) onExitDown();
 			}
 			return true;
 		}
 
 		return true;
-	}, [zone, rowIdx, cols, contentRows, detail, detailBtns, onExitLeft]);
+	}, [zone, rowIdx, cols, contentRows, detail, detailBtns, onExitLeft, onExitDown]);
 
 	useKeys(handleKey, active && !(detail && detail.confirming));
 
@@ -666,7 +707,18 @@ export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 		onLongPress: function () {}
 	}, active && !(detail && detail.confirming));
 
-	var rowScrollY = rowIdx > 0 ? rowIdx * ROW_SCROLL : 0;
+	var rowsRef = useRef<HTMLDivElement>(null);
+	var rowsInnerRef = useRef<HTMLDivElement>(null);
+	var [rowsH, setRowsH] = useState(648);
+	useEffect(function () {
+		if (rowsRef.current) {
+			var h = rowsRef.current.clientHeight;
+			if (h > 0) setRowsH(h);
+		}
+	});
+	var innerH = rowsInnerRef.current ? rowsInnerRef.current.scrollHeight : contentRows.length * ROW_SCROLL;
+	var maxScrollY = Math.max(0, innerH - rowsH);
+	var rowScrollY = rowIdx > 0 ? Math.min(rowIdx * ROW_SCROLL, maxScrollY) : 0;
 
 	if (loading) {
 		return <div class="cinema__empty">Loading watchlist…</div>;
@@ -680,6 +732,7 @@ export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 
 	return (
 		<div class="watchlist">
+			{updating && <div class="watchlist__updating">Updating…</div>}
 			{/* hero */}
 			<div class="cinema__hero">
 				<div class="cinema__hero-bd" style={'background-image:' + (bdUrl0 ? 'url(' + bdUrl0 + ')' : 'none') + ';opacity:' + (bdSlot === 0 ? 1 : 0)} />
@@ -699,8 +752,8 @@ export function Watchlist ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 			</div>
 
 			{/* rows */}
-			<div class="cinema__rows">
-				<div class="cinema__rows-inner" style={'transform:translate3d(0,' + (-rowScrollY) + 'px,0)'}>
+			<div class="cinema__rows" ref={rowsRef}>
+				<div class="cinema__rows-inner" ref={rowsInnerRef} style={'transform:translate3d(0,' + (-rowScrollY) + 'px,0)'}>
 					{contentRows.map(function (r, ri) {
 						var c = cols[ri] || 0;
 						var total = r.items.length * CARD_STEP;

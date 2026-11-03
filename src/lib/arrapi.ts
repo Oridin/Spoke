@@ -42,26 +42,24 @@ export function apiCallLarge (opts: ApiCallOptions): Promise<string> {
 		? writeTemp(JSON.stringify(opts.body))
 		: Promise.resolve();
 	return prepare.then(() => {
-		return exec(`curl -s -X ${method} ${headerArgs}${bodyArg} ${shellQuote(opts.url)} > ${TMP_RESP} && echo OK`, timeout);
-	}).then(function (result) {
-		if (result.trim() !== 'OK') return Promise.reject(new Error('curl failed'));
-		return exec('wc -c < ' + TMP_RESP, 5000);
+		return exec(`curl -s -X ${method} ${headerArgs}${bodyArg} ${shellQuote(opts.url)} > ${TMP_RESP} && wc -c < ${TMP_RESP}`, timeout);
 	}).then(function (sizeStr) {
 		var size = parseInt(sizeStr.trim(), 10) || 0;
 		if (size === 0) return '';
-		if (size <= 60000) return exec('cat ' + TMP_RESP, timeout);
-		var parts: string[] = [];
-		var offset = 0;
-		function next (): Promise<string> {
-			if (offset >= size) return Promise.resolve(parts.join(''));
-			var end = offset + 60000;
-			return exec('tail -c +' + (offset + 1) + ' ' + TMP_RESP + ' | head -c 60000', timeout).then(function (chunk) {
-				parts.push(chunk);
-				offset = end;
-				return next();
-			});
-		}
-		return next();
+		return exec('cat ' + TMP_RESP, timeout).catch(function () {
+			var CHUNK = 180000;
+			var parts: string[] = [];
+			var offset = 0;
+			function next (): Promise<string> {
+				if (offset >= size) return Promise.resolve(parts.join(''));
+				return exec('tail -c +' + (offset + 1) + ' ' + TMP_RESP + ' | head -c ' + CHUNK, timeout).then(function (chunk) {
+					parts.push(chunk);
+					offset += CHUNK;
+					return next();
+				});
+			}
+			return next();
+		});
 	});
 }
 
@@ -250,6 +248,7 @@ export interface QueuePage {
 
 export interface HistoryRecord {
 	id: number;
+	downloadId?: string;
 	date: string;
 	eventType: string;
 	sourceTitle?: string;

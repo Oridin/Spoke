@@ -220,7 +220,10 @@ export function Home ({items, timeFormat, appearance, active, paused, onActivate
 			return true;
 		}
 		if (key === 'left' || key === 'right' || key === 'up' || key === 'down') setPosition((p) => movePosition(sizes, p, key));
-		else if (key === 'back') onBack();
+		else if (key === 'back') {
+			if (cinemaOn) setCinemaActive(true);
+			else onBack();
+		}
 		return true;
 	}, [sizeKey, onBack, cinemaOn]);
 

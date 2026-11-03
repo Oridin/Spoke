@@ -12,6 +12,7 @@ interface Props {
 	providerIds: number[];
 	onOpenPanel: (item: TrendingShow) => void;
 	onExitLeft: () => void;
+	onExitDown?: () => void;
 	onToast: (msg: string, kind?: 'info' | 'error') => void;
 	plexIdx?: PlexIndex | null;
 }
@@ -47,7 +48,7 @@ const CARD_GAP = 20;
 const CARD_STEP = CARD_W + CARD_GAP;
 const VIEW_W = 1700;
 const GRID_COLS = 7;
-const ROW_SCROLL = 420;
+const ROW_SCROLL = 460;
 const HERO_DEBOUNCE = 250;
 const SEARCH_DEBOUNCE = 400;
 const MAX_GENRE_ROWS = 8;
@@ -59,7 +60,7 @@ const SORT_OPTIONS: {key: SortKey; label: string}[] = [
 	{key: 'newest', label: 'Newest'},
 ];
 
-export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, onExitLeft, onToast, plexIdx}: Props) {
+export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, onExitLeft, onExitDown, onToast, plexIdx}: Props) {
 	const [mediaType, setMediaType] = useState<MediaType>('movie');
 	const [zone, setZone] = useState<BrowseZone>('rows');
 	const [barIdx, setBarIdx] = useState(0);
@@ -410,6 +411,9 @@ export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, o
 				if (rowIdx < contentRows.length - 1) {
 					setRowIdx(rowIdx + 1);
 					if (isFiltered && rowIdx >= contentRows.length - 3) loadMoreFiltered();
+				} else {
+					if (isFiltered && filteredPage < filteredTotalPages) loadMoreFiltered();
+					else if (onExitDown) onExitDown();
 				}
 			}
 			else if (key === 'back') setZone('bar');
@@ -417,7 +421,7 @@ export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, o
 		}
 
 		return true;
-	}, [zone, barIdx, barBtns, sortPanelIdx, filterPanelIdx, filterPanelItems, searchIdx, searchTyping, searchResults, rowIdx, cols, contentRows, isFiltered, onExitLeft, loadMoreForRow, loadMoreFiltered]);
+	}, [zone, barIdx, barBtns, sortPanelIdx, filterPanelIdx, filterPanelItems, searchIdx, searchTyping, searchResults, rowIdx, cols, contentRows, isFiltered, filteredPage, filteredTotalPages, onExitLeft, onExitDown, loadMoreForRow, loadMoreFiltered]);
 
 	var keysActive = active && !(zone === 'search' && searchTyping);
 	useKeys(handleKey, keysActive);
@@ -470,7 +474,18 @@ export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, o
 
 	// --- render ---
 
-	var rowScrollY = rowIdx > 0 ? rowIdx * ROW_SCROLL : 0;
+	var contentRef = useRef<HTMLDivElement>(null);
+	var rowsInnerRef = useRef<HTMLDivElement>(null);
+	var [contentH, setContentH] = useState(648);
+	useEffect(function () {
+		if (contentRef.current) {
+			var h = contentRef.current.clientHeight;
+			if (h > 0) setContentH(h);
+		}
+	});
+	var innerH = rowsInnerRef.current ? rowsInnerRef.current.scrollHeight : contentRows.length * ROW_SCROLL;
+	var maxScrollY = Math.max(0, innerH - contentH);
+	var rowScrollY = rowIdx > 0 ? Math.min(rowIdx * ROW_SCROLL, maxScrollY) : 0;
 
 	return (
 		<div class="browse">
@@ -507,13 +522,13 @@ export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, o
 			</div>
 
 			{/* Content */}
-			<div class="browse__content">
+			<div class="browse__content" ref={contentRef}>
 				{genresLoading && !isFiltered && contentRows.length === 0 && <div class="browse__empty">Loading...</div>}
 				{filteredLoading && isFiltered && contentRows.length === 0 && <div class="browse__empty">Loading...</div>}
 				{!genresLoading && !filteredLoading && contentRows.length === 0 && (
 					<div class="browse__empty">{isFiltered ? 'No results — try different filters' : 'No content available'}</div>
 				)}
-				<div class="browse__rows-inner" style={'transform:translate3d(0,' + (-rowScrollY) + 'px,0)'}>
+				<div class="browse__rows-inner" ref={rowsInnerRef} style={'transform:translate3d(0,' + (-rowScrollY) + 'px,0)'}>
 					{contentRows.map(function (r, ri) {
 						var c = cols[ri] || 0;
 						if (r.isGrid) {
@@ -526,8 +541,10 @@ export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, o
 											var p = posterUrlXL(item.poster);
 											return (
 												<div key={item.id} class={'cinema__card' + (focused ? ' cinema__card--focused' : '')}>
-													{p ? <img class="cinema__poster" src={p} alt="" /> : <div class="cinema__poster cinema__poster--empty" />}
-													{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
+													<div class="cinema__poster-wrap">
+														{p ? <img class="cinema__poster" src={p} alt="" /> : <div class="cinema__poster cinema__poster--empty" />}
+														{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
+													</div>
 													<div class="cinema__card-title">{item.name}</div>
 													<div class="cinema__card-year">{yearOf(item.firstAir)}</div>
 												</div>
@@ -550,8 +567,10 @@ export function Browse ({apiKey, allowShell, active, providerIds, onOpenPanel, o
 											var p = posterUrlXL(item.poster);
 											return (
 												<div key={item.id} class={'cinema__card' + (focused ? ' cinema__card--focused' : '')}>
-													{p ? <img class="cinema__poster" src={p} alt="" /> : <div class="cinema__poster cinema__poster--empty" />}
-													{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
+													<div class="cinema__poster-wrap">
+														{p ? <img class="cinema__poster" src={p} alt="" /> : <div class="cinema__poster cinema__poster--empty" />}
+														{plexIdx && plexIdx.has(item.mediaType, item.id) && <div class="plex-server-badge"><span class="plex-server-badge__icon">✓</span>Server</div>}
+													</div>
 													<div class="cinema__card-title">{item.name}</div>
 													<div class="cinema__card-year">{yearOf(item.firstAir)}</div>
 												</div>

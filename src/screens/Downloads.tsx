@@ -16,6 +16,7 @@ interface Props {
 	radarrKey: string;
 	active: boolean;
 	onExitLeft: () => void;
+	onExitDown?: () => void;
 	onToast: (msg: string, kind?: 'info' | 'error') => void;
 }
 
@@ -38,6 +39,7 @@ interface ListItem {
 	historyEvent?: string;
 	historyDate?: string;
 	quality?: string;
+	historyTimeline?: string;
 }
 
 interface ConfirmState {
@@ -86,7 +88,92 @@ function eventLabel (t: string): string {
 	return t;
 }
 
-export function Downloads ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, onExitLeft, onToast}: Props) {
+var EVENT_PRIORITY: Record<string, number> = {
+	'grabbed': 1,
+	'episodeFileRenamed': 2,
+	'movieFileRenamed': 2,
+	'downloadFolderImported': 3,
+	'episodeFileDeleted': 4,
+	'movieFileDeleted': 4,
+	'downloadFailed': 5,
+};
+
+function groupHistory (records: HistoryRecord[], source: 'sonarr' | 'radarr'): ListItem[] {
+	var groups: Record<string, HistoryRecord[]> = {};
+	var ungrouped: HistoryRecord[] = [];
+	for (var i = 0; i < records.length; i++) {
+		var h = records[i];
+		if (h.downloadId) {
+			if (!groups[h.downloadId]) groups[h.downloadId] = [];
+			groups[h.downloadId].push(h);
+		} else {
+			ungrouped.push(h);
+		}
+	}
+	var items: ListItem[] = [];
+	var keys = Object.keys(groups);
+	for (var k = 0; k < keys.length; k++) {
+		var events = groups[keys[k]];
+		events.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+		var best = events[0];
+		var bestP = EVENT_PRIORITY[best.eventType] || 0;
+		for (var e = 1; e < events.length; e++) {
+			var p = EVENT_PRIORITY[events[e].eventType] || 0;
+			if (p > bestP) { best = events[e]; bestP = p; }
+		}
+		var title = '';
+		for (var t = 0; t < events.length; t++) {
+			var rec = events[t];
+			if (source === 'sonarr' && rec.series && rec.series.title) { title = rec.series.title; break; }
+			if (source === 'radarr' && rec.movie && rec.movie.title) { title = rec.movie.title; break; }
+		}
+		if (!title) title = best.sourceTitle || 'Unknown';
+		var hasImport = false;
+		var timelineParts: string[] = [];
+		for (var tl = 0; tl < events.length; tl++) {
+			var et = events[tl].eventType;
+			if (et === 'downloadFolderImported') hasImport = true;
+			if (hasImport && (et === 'episodeFileRenamed' || et === 'movieFileRenamed')) continue;
+			timelineParts.push(eventLabel(et));
+		}
+		var quality: string | undefined;
+		for (var q = 0; q < events.length; q++) {
+			if (events[q].quality && events[q].quality!.quality && events[q].quality!.quality!.name) { quality = events[q].quality!.quality!.name; break; }
+		}
+		items.push({
+			id: (source === 'sonarr' ? 'sh-' : 'rh-') + best.id,
+			title: title,
+			status: eventLabel(best.eventType),
+			progress: 100, eta: '', size: '', sizeleft: '',
+			source: source, protocol: '', indexer: '', messages: [],
+			isHistory: true,
+			historyEvent: best.eventType,
+			historyDate: events[events.length - 1].date,
+			quality: quality,
+			historyTimeline: timelineParts.length > 1 ? timelineParts.join(' → ') : undefined,
+		});
+	}
+	for (var u = 0; u < ungrouped.length; u++) {
+		var uh = ungrouped[u];
+		var uTitle = source === 'sonarr'
+			? (uh.series && uh.series.title ? uh.series.title : uh.sourceTitle || 'Unknown')
+			: (uh.movie && uh.movie.title ? uh.movie.title : uh.sourceTitle || 'Unknown');
+		items.push({
+			id: (source === 'sonarr' ? 'sh-' : 'rh-') + uh.id,
+			title: uTitle,
+			status: eventLabel(uh.eventType),
+			progress: 100, eta: '', size: '', sizeleft: '',
+			source: source, protocol: '', indexer: '', messages: [],
+			isHistory: true,
+			historyEvent: uh.eventType,
+			historyDate: uh.date,
+			quality: uh.quality && uh.quality.quality ? uh.quality.quality.name : undefined,
+		});
+	}
+	return items;
+}
+
+export function Downloads ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, onExitLeft, onExitDown, onToast}: Props) {
 	var [tab, setTab] = useState<TabId>('queue');
 	var [queueItems, setQueueItems] = useState<ListItem[]>([]);
 	var [historyItems, setHistoryItems] = useState<ListItem[]>([]);
@@ -162,49 +249,8 @@ export function Downloads ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 			sonarrHistory(sConn).catch(function () { return {records: []} as {records: HistoryRecord[]}; }),
 			radarrHistory(rConn).catch(function () { return {records: []} as {records: HistoryRecord[]}; }),
 		]).then(function (results) {
-			var items: ListItem[] = [];
-			var sr = results[0].records;
-			for (var i = 0; i < sr.length; i++) {
-				var h = sr[i];
-				items.push({
-					id: 'sh-' + h.id,
-					title: h.sourceTitle || (h.series ? h.series.title : 'Unknown'),
-					status: eventLabel(h.eventType),
-					progress: 100,
-					eta: '',
-					size: '',
-					sizeleft: '',
-					source: 'sonarr',
-					protocol: '',
-					indexer: '',
-					messages: [],
-					isHistory: true,
-					historyEvent: h.eventType,
-					historyDate: h.date,
-					quality: h.quality && h.quality.quality ? h.quality.quality.name : undefined,
-				});
-			}
-			var rr = results[1].records;
-			for (var j = 0; j < rr.length; j++) {
-				var rh = rr[j];
-				items.push({
-					id: 'rh-' + rh.id,
-					title: rh.sourceTitle || (rh.movie ? rh.movie.title : 'Unknown'),
-					status: eventLabel(rh.eventType),
-					progress: 100,
-					eta: '',
-					size: '',
-					sizeleft: '',
-					source: 'radarr',
-					protocol: '',
-					indexer: '',
-					messages: [],
-					isHistory: true,
-					historyEvent: rh.eventType,
-					historyDate: rh.date,
-					quality: rh.quality && rh.quality.quality ? rh.quality.quality.name : undefined,
-				});
-			}
+			var items = groupHistory(results[0].records, 'sonarr')
+				.concat(groupHistory(results[1].records, 'radarr'));
 			items.sort(function (a, b) {
 				if (!a.historyDate || !b.historyDate) return 0;
 				return b.historyDate < a.historyDate ? -1 : b.historyDate > a.historyDate ? 1 : 0;
@@ -213,9 +259,34 @@ export function Downloads ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 		});
 	}, [sConn, rConn]);
 
+	var [histPage, setHistPage] = useState(1);
+	var [histHasMore, setHistHasMore] = useState(false);
+
+	var loadMoreHistory = useCallback(function () {
+		var next = histPage + 1;
+		return Promise.all([
+			sonarrHistory(sConn, next).catch(function () { return {records: []} as {records: HistoryRecord[]}; }),
+			radarrHistory(rConn, next).catch(function () { return {records: []} as {records: HistoryRecord[]}; }),
+		]).then(function (results) {
+			var more = groupHistory(results[0].records, 'sonarr')
+				.concat(groupHistory(results[1].records, 'radarr'));
+			more.sort(function (a, b) {
+				if (!a.historyDate || !b.historyDate) return 0;
+				return b.historyDate < a.historyDate ? -1 : b.historyDate > a.historyDate ? 1 : 0;
+			});
+			if (more.length === 0) setHistHasMore(false);
+			else { setHistoryItems(function (prev) { return prev.concat(more); }); setHistPage(next); }
+		});
+	}, [sConn, rConn, histPage]);
+
 	useEffect(function () {
-		Promise.all([fetchQueue(), fetchHistory()])
-			.then(function () { setLoading(false); setError(null); })
+		fetchQueue()
+			.then(function () {
+				setLoading(false); setError(null);
+				return fetchHistory().then(function () {
+					setHistHasMore(true);
+				});
+			})
 			.catch(function (e) { setError(e && e.message || 'Failed to load'); setLoading(false); });
 	}, [fetchQueue, fetchHistory]);
 
@@ -269,6 +340,8 @@ export function Downloads ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 		}
 		if (key === 'down') {
 			if (idx < items.length - 1) setIdx(idx + 1);
+			else if (tab === 'history' && histHasMore) loadMoreHistory();
+			else if (onExitDown) onExitDown();
 			return true;
 		}
 		if (key === 'left') {
@@ -281,7 +354,7 @@ export function Downloads ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 			return true;
 		}
 		return true;
-	}, [idx, items, tab, onExitLeft]);
+	}, [idx, items, tab, onExitLeft, onExitDown, histHasMore, loadMoreHistory]);
 
 	useKeys(handleKey, active && !confirm);
 
@@ -328,6 +401,7 @@ export function Downloads ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 								{item.isHistory && (
 									<>
 										<span class={'downloads__status downloads__status--' + (item.historyEvent || '')}>{item.status}</span>
+										{item.historyTimeline && <span class="downloads__timeline">{item.historyTimeline}</span>}
 										{item.quality && <span class="downloads__quality">{item.quality}</span>}
 										{item.historyDate && <span class="downloads__date">{fmtDate(item.historyDate)}</span>}
 									</>
@@ -343,6 +417,9 @@ export function Downloads ({sonarrUrl, sonarrKey, radarrUrl, radarrKey, active, 
 					);
 				})}
 			</div>
+			{tab === 'history' && histHasMore && (
+				<div class="downloads__load-more">Load more history…</div>
+			)}
 
 			{/* cancel confirm */}
 			{confirm && (

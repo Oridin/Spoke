@@ -340,15 +340,25 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 		onLongPress: () => {}
 	}, cinemaKeysActive);
 
-	const rowScrollY = rowIdx > 0 ? rowIdx * ROW_SCROLL : 0;
+	const rowsContainerRef = useRef<HTMLDivElement>(null);
+	const rowsInnerRef = useRef<HTMLDivElement>(null);
+	const [rowsVP, setRowsVP] = useState(720);
+	useEffect(() => {
+		if (rowsContainerRef.current) {
+			var h = rowsContainerRef.current.clientHeight;
+			if (h > 0) setRowsVP(h);
+		}
+	});
+	const innerH = rowsInnerRef.current ? rowsInnerRef.current.scrollHeight : rows.length * ROW_SCROLL;
+	const maxScrollY = Math.max(0, innerH - rowsVP);
+	const rowScrollY = rowIdx > 0 ? Math.min(rowIdx * ROW_SCROLL, maxScrollY) : 0;
 
-	const cinemaH = 1080 - (rowAreaPx || 0);
-	const heroH = Math.round(cinemaH * 0.39);
-	const heroShift = tab.id === 'home' && rowIdx > 0 ? heroH - 80 : 0;
+	const HERO_COLLAPSE = 175;
+	const mainScrollY = (active && tab.id === 'home' && rowIdx > 0) ? HERO_COLLAPSE : 0;
 
 	return (
 		<div class="cinema" style={rowAreaPx ? 'bottom:' + rowAreaPx + 'px' : undefined}>
-			<nav class={'cinema__sidebar' + (zone === 'sidebar' ? ' cinema__sidebar--active' : '')}>
+			<nav class={'cinema__sidebar' + (active && zone === 'sidebar' ? ' cinema__sidebar--active' : '')}>
 				<div class="cinema__logo"><span class="cinema__monogram">S</span><span class="cinema__wordmark">SPOKE</span></div>
 				{TABS.map((t, i) => (
 					<div
@@ -363,7 +373,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 				))}
 			</nav>
 
-			<div class={'cinema__main' + (heroShift > 0 ? ' cinema__main--scrolled' : '')} style={heroShift > 0 ? 'transform:translate3d(0,-' + heroShift + 'px,0)' : undefined}>
+			<div class="cinema__main" style={mainScrollY > 0 ? 'transform:translate3d(0,-' + mainScrollY + 'px,0)' : undefined}>
 				{tab.id === 'browse' ? (
 					<Browse
 						apiKey={apiKey}
@@ -372,6 +382,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 						providerIds={providerIds}
 						onOpenPanel={pushShowDetail}
 						onExitLeft={() => setZone('sidebar')}
+						onExitDown={onExitDown}
 						onToast={onToast}
 						plexIdx={plexIdx}
 					/>
@@ -382,6 +393,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 						active={active && zone === 'rows' && !showDetail}
 						showHidden={showHidden}
 						onExitLeft={() => setZone('sidebar')}
+						onExitDown={onExitDown}
 						onToast={onToast}
 						sonarrUrl={sonarrUrl}
 						sonarrKey={sonarrKey}
@@ -398,6 +410,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 						radarrKey={radarrKey}
 						active={active && zone === 'rows' && !showDetail}
 						onExitLeft={() => setZone('sidebar')}
+						onExitDown={onExitDown}
 						onToast={onToast}
 						enableDelete={enableDeleteActions}
 						onOpenShowDetail={openWatchlistShowDetail}
@@ -410,6 +423,7 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 						radarrKey={radarrKey}
 						active={active && zone === 'rows'}
 						onExitLeft={() => setZone('sidebar')}
+						onExitDown={onExitDown}
 						onToast={onToast}
 					/>
 				) : (
@@ -431,8 +445,8 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 					)}
 				</div>
 
-				<div class="cinema__rows">
-					<div class="cinema__rows-inner" style={'transform:translate3d(0,' + (-rowScrollY) + 'px,0)'}>
+				<div class="cinema__rows" ref={rowsContainerRef}>
+					<div class="cinema__rows-inner" ref={rowsInnerRef} style={'transform:translate3d(0,' + (-rowScrollY) + 'px,0)'}>
 						{rows.map((r, ri) => {
 							const c = cols[ri] || 0;
 							const total = r.items.length * CARD_STEP;
@@ -506,6 +520,21 @@ export function CinemaPanel ({trending, installedAppIds, onLaunch, onToast, acti
 					/>
 				)}
 			</div>
+
+			{tab.id === 'home' && (
+				<div class={'cinema__compact-strip' + (mainScrollY > 0 && heroItem ? ' cinema__compact-strip--visible' : '')}>
+					{heroItem && (
+						<>
+							<h1 class="cinema__strip-title">{heroItem.name}</h1>
+							<div class="cinema__strip-meta">
+								{yearOf(heroItem.firstAir) && <span class="cinema__badge">{yearOf(heroItem.firstAir)}</span>}
+								{heroItem.rating > 0 && <span class="cinema__badge">{heroItem.rating.toFixed(1)}</span>}
+								<span class="cinema__badge">{heroItem.mediaType === 'tv' ? 'TV Series' : 'Movie'}</span>
+							</div>
+						</>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }

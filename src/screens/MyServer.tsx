@@ -29,6 +29,7 @@ interface Props {
 	active: boolean;
 	showHidden: boolean;
 	onExitLeft: () => void;
+	onExitDown?: () => void;
 	onToast: (msg: string, kind?: 'info' | 'error') => void;
 	sonarrUrl?: string;
 	sonarrKey?: string;
@@ -73,7 +74,7 @@ var CARD_W = 200;
 var CARD_GAP = 20;
 var CARD_STEP = CARD_W + CARD_GAP;
 var VIEW_W = 1700;
-var ROW_SCROLL = 420;
+var ROW_SCROLL = 460;
 var HERO_DEBOUNCE = 250;
 var SEARCH_DEBOUNCE = 400;
 var MAX_GENRE_ROWS = 8;
@@ -116,7 +117,7 @@ function cardSub (item: PlexItem): string {
 function cardThumb (item: PlexItem): string | undefined { return item.type === 'episode' ? (item.grandparentThumb || item.thumb) : item.thumb; }
 function cardArt (item: PlexItem): string | undefined { return item.art || item.grandparentArt; }
 
-export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, onToast, sonarrUrl, sonarrKey, radarrUrl, radarrKey, onPlayPlex, onOpenShowDetail}: Props) {
+export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, onExitDown, onToast, sonarrUrl, sonarrKey, radarrUrl, radarrKey, onPlayPlex, onOpenShowDetail}: Props) {
 	var [allSections, setAllSections] = useState<PlexSection[]>([]);
 	var [sectionIdx, setSectionIdx] = useState(0);
 	var [zone, setZone] = useState<ServerZone>('rows');
@@ -765,6 +766,9 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 				if (rowIdx < contentRows.length - 1) {
 					setRowIdx(rowIdx + 1);
 					if ((isFiltered || isGrid) && rowIdx >= contentRows.length - 3) loadMoreFiltered();
+				} else {
+					if ((isFiltered || isGrid) && (filteredPage + 1) * 20 < filteredTotal) loadMoreFiltered();
+					else if (onExitDown) onExitDown();
 				}
 			}
 			else if (key === 'back') setZone('bar');
@@ -772,7 +776,7 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 		}
 
 		return true;
-	}, [zone, detail, detailBtnCount, searchTyping, searchIdx, searchResults, sortPanelIdx, filterPanelIdx, filterPanelItems, barIdx, barBtns, rowIdx, cols, contentRows, isFiltered, isGrid, onExitLeft, loadMoreForRow, loadMoreFiltered]);
+	}, [zone, detail, detailBtnCount, searchTyping, searchIdx, searchResults, sortPanelIdx, filterPanelIdx, filterPanelItems, barIdx, barBtns, rowIdx, cols, contentRows, isFiltered, isGrid, filteredPage, filteredTotal, onExitLeft, onExitDown, loadMoreForRow, loadMoreFiltered]);
 
 	var keysActive = active && !(zone === 'search' && searchTyping);
 	useKeys(handleKey, keysActive);
@@ -946,7 +950,18 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 	}
 
 	var scrollStep = isCompact ? COMPACT_ROW_SCROLL : ROW_SCROLL;
-	var rowScrollY = rowIdx > 0 ? rowIdx * scrollStep : 0;
+	var contentRef = useRef<HTMLDivElement>(null);
+	var rowsInnerRef = useRef<HTMLDivElement>(null);
+	var [contentH, setContentH] = useState(isCompact || isGrid ? 942 : 648);
+	useEffect(function () {
+		if (contentRef.current) {
+			var h = contentRef.current.clientHeight;
+			if (h > 0) setContentH(h);
+		}
+	});
+	var innerH = rowsInnerRef.current ? rowsInnerRef.current.scrollHeight : contentRows.length * scrollStep;
+	var maxScrollY = Math.max(0, innerH - contentH);
+	var rowScrollY = rowIdx > 0 ? Math.min(rowIdx * scrollStep, maxScrollY) : 0;
 	var cardStep = isCompact ? COMPACT_CARD_STEP : CARD_STEP;
 	var cardW = isCompact ? COMPACT_CARD_W : CARD_W;
 
@@ -990,11 +1005,11 @@ export function MyServer ({plexUrl, plexToken, active, showHidden, onExitLeft, o
 			</div>
 
 			{/* Content */}
-			<div class="browse__content">
+			<div class="browse__content" ref={contentRef}>
 				{!isFiltered && !isGrid && contentRows.length === 0 && !loading && <div class="browse__empty">No content in this library</div>}
 				{filteredLoading && isFiltered && contentRows.length === 0 && <div class="browse__empty">Loading…</div>}
 				{!filteredLoading && isFiltered && contentRows.length === 0 && <div class="browse__empty">No results — try different filters</div>}
-				<div class="browse__rows-inner" style={'transform:translate3d(0,' + (-rowScrollY) + 'px,0)'}>
+				<div class="browse__rows-inner" ref={rowsInnerRef} style={'transform:translate3d(0,' + (-rowScrollY) + 'px,0)'}>
 					{contentRows.map(function (r, ri) {
 						var c = cols[ri] || 0;
 						if (r.isGrid) {
