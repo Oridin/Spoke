@@ -2518,10 +2518,24 @@ img.browse__search-poster {
 	background: rgba(232, 126, 36, 0.4);
 }
 
+.show-detail__action-btn--disabled {
+	opacity: 0.4;
+}
 .show-detail__action-btn--block {
 	display: block;
 	width: 100%;
 	margin: 0 0 8px;
+}
+.show-detail__dl-loading {
+	font-size: 22px;
+	color: rgba(255, 255, 255, 0.5);
+	margin-left: 12px;
+}
+.show-detail__overlay-loading {
+	font-size: 22px;
+	color: rgba(255, 255, 255, 0.5);
+	text-align: center;
+	margin-top: 8px;
 }
 
 /* two-column body: seasons left, episodes right */

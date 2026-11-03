@@ -16,8 +16,9 @@ import {launchApp} from '../lib/launch';
 import {
 	sonarrConn, radarrConn, watchlistCheckSeries, watchlistAddSeriesByTmdb, watchlistStopSeries,
 	watchlistCheckMovie, watchlistAddMovie, watchlistStopMovie, downloadMovie,
-	downloadSeries, sonarrQueue, resolveProfileId,
-	type SonarrSeries, type SonarrEpisode, type RadarrMovie, type QueueRecord, type MonitorScope,
+	downloadSeries, downloadSeriesPrep, downloadSeriesListEpisodes, sonarrQueue, resolveProfileId,
+	type SonarrSeries, type SonarrEpisode as ArrEpisode, type RadarrMovie, type QueueRecord, type MonitorScope,
+	type DlSeasonInfo, type DownloadScope,
 } from '../lib/arrapi';
 
 interface Props {
@@ -67,7 +68,7 @@ interface MergedEpisode {
 }
 
 type Zone = 'actions' | 'seasons' | 'episodes' | 'cast' | 'collection' | 'recs';
-type Overlay = 'season-actions' | 'dl-confirm' | 'wl-monitor' | 'wl-stop' | 'remove-confirm' | null;
+type Overlay = 'season-actions' | 'dl-confirm' | 'dl-scope' | 'dl-seasons' | 'dl-episodes' | 'dl-confirm-bulk' | 'wl-monitor' | 'wl-stop' | 'remove-confirm' | null;
 
 var PLEX_APP = 'cdp-30';
 var EP_ROW_H = 152;
@@ -110,7 +111,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 	var [plexSeasons, setPlexSeasons] = useState<PlexItem[] | null>(null);
 	var [plexEpMap, setPlexEpMap] = useState<Record<string, PlexItem[]>>({});
 	var [sonarrSeries, setSonarrSeries] = useState<SonarrSeries | null>(null);
-	var [sonarrEps, setSonarrEps] = useState<SonarrEpisode[]>([]);
+	var [sonarrEps, setSonarrEps] = useState<ArrEpisode[]>([]);
 	var [radarrMovie, setRadarrMovie] = useState<RadarrMovie | null>(null);
 	var [queueRecords, setQueueRecords] = useState<QueueRecord[]>([]);
 	var [zone, setZone] = useState<Zone>('actions');
@@ -134,6 +135,17 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 	var [recsIdx, setRecsIdx] = useState(0);
 	var prevShowId = useRef(-1);
 	var dlBusy = useRef(false);
+	var dlPollRef = useRef(0);
+	var [dlCounts, setDlCounts] = useState<{seasons: DlSeasonInfo[]; lastSeason: number; all: number} | null>(null);
+	var [dlSeasons, setDlSeasons] = useState<DlSeasonInfo[] | null>(null);
+	var [dlMode, setDlMode] = useState<'episode' | 'season'>('episode');
+	var [dlEpisodes, setDlEpisodes] = useState<ArrEpisode[] | null>(null);
+	var [dlSeasonNumber, setDlSeasonNumber] = useState(0);
+	var [dlPendingScope, setDlPendingScope] = useState<DownloadScope | null>(null);
+	var [dlPendingCount, setDlPendingCount] = useState(0);
+	var [dlLoading, setDlLoading] = useState(false);
+	var [seasonLoading, setSeasonLoading] = useState(false);
+	var [epFetchError, setEpFetchError] = useState(false);
 
 	var plexType = isMovie ? 'movie' : 'tv';
 	var isOnPlex = !!(plexIdx && plexIdx.has(plexType as 'tv' | 'movie', show.id));
@@ -181,6 +193,13 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 		setCastIdx(0);
 		setCollectionIdx(0);
 		setRecsIdx(0);
+		setDlCounts(null);
+		setDlSeasons(null);
+		setDlEpisodes(null);
+		setDlPendingScope(null);
+		setDlLoading(false);
+		setSeasonLoading(false);
+		setEpFetchError(false);
 
 		if (isMovie) {
 			fetchTmdbMovieDetail(apiKey, show.id, allowShell).then(function (md) {
@@ -207,16 +226,8 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 				setLoading(false);
 				var real = detail.seasons.filter(function (s) { return s.season_number > 0; });
 				if (real.length === 0) real = detail.seasons;
-				var lastIdx = 0;
-				for (var i = 0; i < detail.seasons.length; i++) {
-					if (detail.seasons[i].season_number === real[real.length - 1].season_number) { lastIdx = i; break; }
-				}
-				setSeasonIdx(lastIdx);
-				if (detail.seasons[lastIdx]) {
-					fetchTmdbSeasonDetail(apiKey, show.id, detail.seasons[lastIdx].season_number, allowShell).then(function (sd) {
-						setSeasonEps(function (prev) { var n: Record<number, TmdbEpisode[]> = {}; for (var k in prev) n[k] = prev[k]; n[sd.season_number] = sd.episodes; return n; });
-					});
-				}
+				var initIdx = real.length > 0 ? real.length - 1 : 0;
+				setSeasonIdx(initIdx);
 			});
 
 			if (isOnPlex && plexRk && plexUrl && plexToken) {
@@ -255,7 +266,11 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 		return real.length > 0 ? real : tmdbDetail.seasons;
 	}, [tmdbDetail]);
 
-	var currentSeason = displaySeasons[seasonIdx] || null;
+	var clampedIdx = displaySeasons.length > 0 ? Math.min(seasonIdx, displaySeasons.length - 1) : 0;
+	useEffect(function () {
+		if (displaySeasons.length > 0 && seasonIdx >= displaySeasons.length) setSeasonIdx(displaySeasons.length - 1);
+	}, [seasonIdx, displaySeasons.length]);
+	var currentSeason = displaySeasons[clampedIdx] || null;
 	var currentSeasonNum = currentSeason ? currentSeason.season_number : -1;
 
 	var seasonProgress: {total: number; watched: number}[] = useMemo(function () {
@@ -294,11 +309,42 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 
 	// --- fetch TMDB episodes for current season ---
 	useEffect(function () {
-		if (!open || !apiKey || currentSeasonNum < 0 || seasonEps[currentSeasonNum]) return;
+		if (!open || !apiKey || currentSeasonNum < 0 || seasonEps[currentSeasonNum]) {
+			if (seasonEps[currentSeasonNum]) setSeasonLoading(false);
+			return;
+		}
+		var stale = false;
+		setSeasonLoading(true);
+		setEpFetchError(false);
+		var doFetch = function (retry: boolean) {
+			fetchTmdbSeasonDetail(apiKey, show.id, currentSeasonNum, allowShell).then(function (sd) {
+				if (stale) return;
+				setSeasonEps(function (prev) { var n: Record<number, TmdbEpisode[]> = {}; for (var k in prev) n[k] = prev[k]; n[sd.season_number] = sd.episodes; return n; });
+				setSeasonLoading(false);
+			}).catch(function () {
+				if (stale) return;
+				if (retry) { doFetch(false); return; }
+				setSeasonLoading(false);
+				setEpFetchError(true);
+			});
+		};
+		doFetch(true);
+		return function () { stale = true; };
+	}, [open, apiKey, show.id, currentSeasonNum, allowShell]);
+
+	var retrySeasonFetch = useCallback(function () {
+		if (!apiKey || currentSeasonNum < 0) return;
+		setSeasonLoading(true);
+		setEpFetchError(false);
 		fetchTmdbSeasonDetail(apiKey, show.id, currentSeasonNum, allowShell).then(function (sd) {
 			setSeasonEps(function (prev) { var n: Record<number, TmdbEpisode[]> = {}; for (var k in prev) n[k] = prev[k]; n[sd.season_number] = sd.episodes; return n; });
-		}).catch(function () { onToast('Failed to load episodes', 'error'); });
-	}, [open, apiKey, show.id, currentSeasonNum, allowShell]);
+			setSeasonLoading(false);
+		}).catch(function () {
+			setSeasonLoading(false);
+			setEpFetchError(true);
+			onToast('Failed to load episodes', 'error');
+		});
+	}, [apiKey, show.id, currentSeasonNum, allowShell, onToast]);
 
 	// --- fetch Plex episodes for current season ---
 	var plexSeasonItem = useMemo(function () {
@@ -332,8 +378,8 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 	});
 
 	// --- merge TMDB + Plex + Sonarr episodes ---
-	var sonarrEpMap: Record<string, SonarrEpisode> = useMemo(function () {
-		var m: Record<string, SonarrEpisode> = {};
+	var sonarrEpMap: Record<string, ArrEpisode> = useMemo(function () {
+		var m: Record<string, ArrEpisode> = {};
 		for (var i = 0; i < sonarrEps.length; i++) m[sonarrEps[i].seasonNumber + ':' + sonarrEps[i].episodeNumber] = sonarrEps[i];
 		return m;
 	}, [sonarrEps]);
@@ -459,8 +505,8 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 	}, [episodes]);
 
 	// --- action buttons ---
-	var actionBtns: {label: string; action: string; primary: boolean}[] = useMemo(function () {
-		var btns: {label: string; action: string; primary: boolean}[] = [];
+	var actionBtns: {label: string; action: string; primary: boolean; disabled?: string}[] = useMemo(function () {
+		var btns: {label: string; action: string; primary: boolean; disabled?: string}[] = [];
 		var provSource = isMovie && movieDetail && movieDetail.providers.length > 0 ? movieDetail.providers : show.providers;
 		if (isMovie) {
 			if (isOnPlex) {
@@ -504,23 +550,41 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 		}
 		if (isOnWatchlist) btns.push({label: 'On Watchlist ✓', action: 'wl-status', primary: false});
 		else btns.push({label: 'Add to Watchlist', action: 'wl-add', primary: false});
-		if (!isMovie && hasArr && sonarrSeries && !idMismatch && !profileError) btns.push({label: 'Search Now', action: 'search', primary: false});
-		if (isMovie && hasArr && radarrMovie && !profileError) btns.push({label: 'Search Now', action: 'search-movie', primary: false});
-		if (isMovie && hasArr && !isOnPlex && !profileError) btns.push({label: 'Download', action: 'dl-movie', primary: false});
-		if (!hasArr && hasFetchbox && onSeedbox) btns.push({label: 'Seedbox', action: 'seedbox', primary: false});
+		// Download — always visible when arr is configured, disabled with reason if not ready
+		if (isMovie) {
+			if (hasArr) {
+				if (radarrError) btns.push({label: 'Download', action: 'dl-movie', primary: false, disabled: 'Radarr unreachable (Retry)'});
+				else if (profileError) btns.push({label: 'Download', action: 'dl-movie', primary: false, disabled: "Quality profile 'HD-1080p' not found (Settings → Connections)"});
+				else btns.push({label: 'Download', action: 'dl-movie', primary: false});
+			} else if (hasFetchbox && onSeedbox) {
+				btns.push({label: 'Seedbox', action: 'seedbox', primary: false});
+			}
+		} else {
+			if (hasArr) {
+				if (sonarrError) btns.push({label: 'Download', action: 'download', primary: false, disabled: 'Sonarr unreachable (Retry)'});
+				else if (idMismatch) btns.push({label: 'Download', action: 'download', primary: false, disabled: "Couldn't verify this show"});
+				else if (profileError) btns.push({label: 'Download', action: 'download', primary: false, disabled: "Quality profile 'HD-1080p' not found (Settings → Connections)"});
+				else btns.push({label: 'Download', action: 'download', primary: false});
+			} else if (hasFetchbox && onSeedbox) {
+				btns.push({label: 'Seedbox', action: 'seedbox', primary: false});
+			}
+		}
+		// Search Now — only for titles already in Sonarr/Radarr
+		if (!isMovie && hasArr && sonarrSeries && !idMismatch && !sonarrError) btns.push({label: 'Search Now', action: 'search', primary: false});
+		if (isMovie && hasArr && radarrMovie && !radarrError) btns.push({label: 'Search Now', action: 'search-movie', primary: false});
 		if (plexError || sonarrError || radarrError) btns.push({label: 'Retry', action: 'retry', primary: false});
 		return btns;
 	}, [isMovie, isOnPlex, resumeEp, firstUnwatched, show.providers, installedAppIds, isOnWatchlist, plexError, sonarrError, radarrError, hasArr, hasFetchbox, onSeedbox, sonarrSeries, radarrMovie, idMismatch, profileError, movieDetail]);
 
 
-	// --- season action items ---
+	// --- season action items (only shown when there are real items) ---
 	var seasonActionItems: {label: string; action: string}[] = useMemo(function () {
 		var items: {label: string; action: string}[] = [];
-		if (currentSeason && !idMismatch && !profileError) items.push({label: 'Download Season ' + currentSeason.season_number, action: 'dl-season'});
 		if (enableDeleteActions && sonarrSeries && !idMismatch) items.push({label: 'Remove from Library', action: 'remove'});
-		items.push({label: 'Cancel', action: 'cancel'});
+		if (items.length > 0) items.push({label: 'Cancel', action: 'cancel'});
 		return items;
-	}, [currentSeason, idMismatch, profileError, enableDeleteActions, sonarrSeries]);
+	}, [idMismatch, enableDeleteActions, sonarrSeries]);
+	var showSeasonActions = seasonActionItems.length > 0;
 
 	// --- scroll offsets ---
 	var scrollY = useMemo(function () {
@@ -532,8 +596,8 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 	var SEASON_ITEM_H = 80;
 	var SEASON_VISIBLE = 7;
 	var seasonScrollY = useMemo(function () {
-		if (displaySeasons.length + (hasArr ? 1 : 0) <= SEASON_VISIBLE) return 0;
-		var maxScroll = Math.max(0, (displaySeasons.length + (hasArr ? 1 : 0)) - SEASON_VISIBLE);
+		if (displaySeasons.length + (showSeasonActions ? 1 : 0) <= SEASON_VISIBLE) return 0;
+		var maxScroll = Math.max(0, (displaySeasons.length + (showSeasonActions ? 1 : 0)) - SEASON_VISIBLE);
 		var s = Math.max(0, Math.min(seasonIdx - 2, maxScroll));
 		return s * SEASON_ITEM_H;
 	}, [seasonIdx, displaySeasons.length, hasArr]);
@@ -615,7 +679,8 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 		}
 	}, [plexError, sonarrError, radarrError, isMovie, isOnPlex, plexRk, plexUrl, plexToken, sConn, rConn, show.id]);
 
-	var doAction = useCallback(function (action: string) {
+	var doAction = useCallback(function (action: string, btn?: {disabled?: string}) {
+		if (btn && btn.disabled) { onToast(btn.disabled, 'error'); return; }
 		if (action === 'play-movie') {
 			if (plexRk && onPlayPlex) onPlayPlex(plexRk, show.name);
 			else launchApp(PLEX_APP).catch(function () { onToast("Couldn't open Plex", 'error'); });
@@ -629,8 +694,6 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 			}
 			launchApp(PLEX_APP).catch(function () { onToast("Couldn't open Plex", 'error'); });
 		} else if (action === 'wl-add') {
-			if (!isMovie && idMismatch) { onToast("Couldn't verify this show", 'error'); return; }
-			if (profileError) { onToast("Quality profile 'HD-1080p' not found (Settings → Connections)", 'error'); return; }
 			if (isMovie) {
 				if (rConn) {
 					onToast('Adding ' + show.name + '...');
@@ -660,12 +723,23 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 				onToast(r.title + ' search started');
 			}).catch(function (e) { onToast(e && e.message || 'Search failed', 'error'); });
 		} else if (action === 'dl-movie' && rConn) {
-			if (profileError) { onToast("Quality profile 'HD-1080p' not found (Settings → Connections)", 'error'); return; }
 			onToast('Downloading ' + show.name + '...');
 			downloadMovie(rConn, show.id).then(function (r) {
 				onToast(r.title + (r.alreadyHasFile ? ' already on server' : ' download started'));
 				onWatchlistChanged();
 			}).catch(function (e) { onToast(e && e.message || 'Download failed', 'error'); });
+		} else if (action === 'download' && sConn) {
+			setDlLoading(true);
+			downloadSeriesPrep(sConn, show.id).then(function (prep) {
+				setDlCounts(prep);
+				setDlSeasons(prep.seasons);
+				setDlLoading(false);
+				setOverlay('dl-scope');
+				setOverlayIdx(4);
+			}).catch(function (e) {
+				setDlLoading(false);
+				onToast(e && e.message || 'Failed to load download options', 'error');
+			});
 		} else if (action === 'seedbox' && onSeedbox) {
 			onSeedbox(show.name, yearOf(show.firstAir), show.mediaType);
 		} else if (action === 'retry') {
@@ -673,7 +747,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 		} else if (action.indexOf('launch:') === 0) {
 			onLaunch(action.slice(7));
 		}
-	}, [isMovie, plexRk, resumeEp, firstUnwatched, episodes, playEpisode, hasArr, hasFetchbox, idMismatch, profileError, onLaunch, onToast, onPlayPlex, onSeedbox, retryFetch, sConn, rConn, sonarrSeries, radarrMovie, show, onWatchlistChanged]);
+	}, [isMovie, plexRk, resumeEp, firstUnwatched, episodes, playEpisode, hasArr, hasFetchbox, onLaunch, onToast, onPlayPlex, onSeedbox, retryFetch, sConn, rConn, sonarrSeries, radarrMovie, show, onWatchlistChanged]);
 
 
 	var doRemove = useCallback(function () {
@@ -772,6 +846,67 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 		}).catch(function (e) { dlBusy.current = false; onToast(e && e.message || 'Download failed', 'error'); });
 	}, [sConn, currentSeason, show.id, sonarrSeries, onToast, onWatchlistChanged]);
 
+	// --- scope picker execution ---
+	var executeDlScope = useCallback(function (scope: DownloadScope) {
+		if (!sConn || dlBusy.current) return;
+		dlBusy.current = true;
+		setOverlay(null);
+		setDlLoading(false);
+		onToast('Downloading ' + show.name + '...');
+		downloadSeries(sConn, show.id, scope)
+			.then(function (result) {
+				if (result.qualityUpgraded) onToast('Quality upgraded to HD-1080p');
+				onToast('Monitoring ' + result.monitoredCount + ' episode' + (result.monitoredCount !== 1 ? 's' : '') + ' of ' + result.title);
+				onToast('Searching…');
+				onWatchlistChanged();
+				watchlistCheckSeries(sConn!, show.id).then(function (check) {
+					setSonarrSeries(check.existing);
+					setSonarrEps(check.episodes);
+				}).catch(function () {});
+				var count = 0;
+				dlPollRef.current = window.setInterval(function () {
+					count++;
+					if (count > 10) {
+						window.clearInterval(dlPollRef.current);
+						dlBusy.current = false;
+						onToast('No releases found yet. ' + result.title + ' stays on your Watchlist and will download when one appears.');
+						return;
+					}
+					sonarrQueue(sConn!).then(function (q) {
+						for (var i = 0; i < q.records.length; i++) {
+							if (q.records[i].seriesId === result.seriesId) {
+								var rec = q.records[i];
+								window.clearInterval(dlPollRef.current);
+								dlBusy.current = false;
+								var sz = rec.size >= 1073741824 ? (rec.size / 1073741824).toFixed(1) + ' GB' : Math.round(rec.size / 1048576) + ' MB';
+								onToast('Grabbed: ' + rec.title + ' (' + sz + ')');
+								return;
+							}
+						}
+					}).catch(function () {});
+				}, 3000);
+			})
+			.catch(function (e) {
+				dlBusy.current = false;
+				onToast(e && e.message || 'Download failed', 'error');
+			});
+	}, [sConn, show, onToast, onWatchlistChanged]);
+
+	var selectDlScope = useCallback(function (scope: DownloadScope, episodeCount: number) {
+		if (episodeCount > 30) {
+			setDlPendingScope(scope);
+			setDlPendingCount(episodeCount);
+			setOverlay('dl-confirm-bulk');
+			setOverlayIdx(0);
+			return;
+		}
+		executeDlScope(scope);
+	}, [executeDlScope]);
+
+	useEffect(function () {
+		return function () { if (dlPollRef.current) window.clearInterval(dlPollRef.current); };
+	}, []);
+
 	// --- episode OK handler ---
 	var handleEpisodeOk = useCallback(function (ep: MergedEpisode) {
 		if (ep.unaired) {
@@ -811,6 +946,82 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 			if (code === KEY.enter) {
 				if (overlayIdx === 1 && dlTarget) doEpisodeDownload(dlTarget);
 				else { setOverlay(null); setDlTarget(null); }
+				return;
+			}
+			return;
+		}
+		if (overlay === 'dl-scope') {
+			e.preventDefault();
+			if (code === KEY.back || code === KEY.escape) { setOverlay(null); return; }
+			if (code === KEY.up) { setOverlayIdx(function (i) { return Math.max(0, i - 1); }); return; }
+			if (code === KEY.down) { setOverlayIdx(function (i) { return Math.min(4, i + 1); }); return; }
+			if (code === KEY.enter) {
+				if (overlayIdx === 0) {
+					setOverlay('dl-seasons'); setOverlayIdx(0); setDlMode('episode');
+				} else if (overlayIdx === 1) {
+					setOverlay('dl-seasons'); setOverlayIdx(0); setDlMode('season');
+				} else if (overlayIdx === 2 && dlCounts) {
+					selectDlScope('lastSeason', dlCounts.lastSeason);
+				} else if (overlayIdx === 3 && dlCounts) {
+					selectDlScope('all', dlCounts.all);
+				} else {
+					setOverlay(null);
+				}
+				return;
+			}
+			return;
+		}
+		if (overlay === 'dl-seasons') {
+			e.preventDefault();
+			var seasonCount = dlSeasons ? dlSeasons.length : 0;
+			if (code === KEY.back || code === KEY.escape) { setOverlay('dl-scope'); setOverlayIdx(dlMode === 'episode' ? 0 : 1); return; }
+			if (code === KEY.up) { setOverlayIdx(function (i) { return Math.max(0, i - 1); }); return; }
+			if (code === KEY.down) { setOverlayIdx(function (i) { return Math.min(seasonCount, i + 1); }); return; }
+			if (code === KEY.enter) {
+				if (overlayIdx >= seasonCount) { setOverlay('dl-scope'); setOverlayIdx(dlMode === 'episode' ? 0 : 1); return; }
+				var picked = dlSeasons![overlayIdx];
+				if (dlMode === 'season') {
+					selectDlScope({season: picked.number}, picked.count);
+				} else {
+					setDlLoading(true);
+					setDlSeasonNumber(picked.number);
+					downloadSeriesListEpisodes(sConn!, show.id, picked.number).then(function (eps) {
+						setDlEpisodes(eps);
+						setDlLoading(false);
+						setOverlay('dl-episodes');
+						setOverlayIdx(0);
+					}).catch(function () {
+						setDlLoading(false);
+						setOverlay('dl-scope');
+						setOverlayIdx(1);
+						onToast('Failed to load episodes', 'error');
+					});
+				}
+				return;
+			}
+			return;
+		}
+		if (overlay === 'dl-episodes') {
+			e.preventDefault();
+			var epCount = dlEpisodes ? dlEpisodes.length : 0;
+			if (code === KEY.back || code === KEY.escape) { setOverlay('dl-seasons'); setOverlayIdx(0); setDlEpisodes(null); return; }
+			if (code === KEY.up) { setOverlayIdx(function (i) { return Math.max(0, i - 1); }); return; }
+			if (code === KEY.down) { setOverlayIdx(function (i) { return Math.min(epCount, i + 1); }); return; }
+			if (code === KEY.enter) {
+				if (overlayIdx >= epCount) { setOverlay('dl-seasons'); setOverlayIdx(0); setDlEpisodes(null); return; }
+				var selEp = dlEpisodes![overlayIdx];
+				selectDlScope({episode: selEp.id}, 1);
+				return;
+			}
+			return;
+		}
+		if (overlay === 'dl-confirm-bulk') {
+			e.preventDefault();
+			if (code === KEY.back || code === KEY.escape) { setOverlay('dl-scope'); setOverlayIdx(4); setDlPendingScope(null); return; }
+			if (code === KEY.left || code === KEY.right) { setOverlayIdx(function (i) { return i === 0 ? 1 : 0; }); return; }
+			if (code === KEY.enter) {
+				if (overlayIdx === 1 && dlPendingScope) executeDlScope(dlPendingScope);
+				else { setOverlay('dl-scope'); setOverlayIdx(4); setDlPendingScope(null); }
 				return;
 			}
 			return;
@@ -861,12 +1072,12 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 					if (movieZones.length > 0) setZone(movieZones[0]);
 				} else {
 					if (displaySeasons.length > 0) { setZone('seasons'); }
-					else if (episodes.length > 0) { setZone('episodes'); setEpIdx(0); }
+					else if (episodes.length > 0 || epFetchError) { setZone('episodes'); setEpIdx(0); }
 				}
 			}
 			else if (code === KEY.enter) {
 				var btn = actionBtns[actionIdx];
-				if (btn) doAction(btn.action);
+				if (btn) doAction(btn.action, btn);
 			}
 			return;
 		}
@@ -901,7 +1112,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 		}
 
 		if (zone === 'seasons') {
-			var tabCount = displaySeasons.length + (hasArr ? 1 : 0);
+			var tabCount = displaySeasons.length + (showSeasonActions ? 1 : 0);
 			if (code === KEY.up) {
 				if (seasonIdx > 0) { setSeasonIdx(seasonIdx - 1); setEpIdx(0); }
 				else setZone('actions');
@@ -910,7 +1121,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 				if (seasonIdx < tabCount - 1) { setSeasonIdx(seasonIdx + 1); setEpIdx(0); }
 			}
 			else if (code === KEY.right) {
-				if (episodes.length > 0) { setZone('episodes'); setEpIdx(0); }
+				if (episodes.length > 0 || epFetchError) { setZone('episodes'); setEpIdx(0); }
 			}
 			else if (code === KEY.left) {
 				if (onExitLeft) onExitLeft();
@@ -934,12 +1145,13 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 			}
 			else if (code === KEY.down) { setEpIdx(function (i) { return Math.min(episodes.length - 1, i + 1); }); }
 			else if (code === KEY.enter) {
+				if (epFetchError) { retrySeasonFetch(); return; }
 				var ep = episodes[epIdx];
 				if (ep) handleEpisodeOk(ep);
 			}
 			return;
 		}
-	}, [zone, actionIdx, seasonIdx, epIdx, overlay, overlayIdx, actionBtns, displaySeasons, episodes, seasonActionItems, dlTarget, doAction, doSeasonDownload, doEpisodeDownload, doWlAdd, doWlStop, doRemove, playEpisode, handleEpisodeOk, onClose, onExitLeft, hasArr, isMovie, movieZones, movieDetail, collectionParts, castIdx, collectionIdx, recsIdx, onOpenDetail, show.id]);
+	}, [zone, actionIdx, seasonIdx, epIdx, overlay, overlayIdx, actionBtns, displaySeasons, episodes, seasonActionItems, dlTarget, doAction, doSeasonDownload, doEpisodeDownload, doWlAdd, doWlStop, doRemove, playEpisode, handleEpisodeOk, onClose, onExitLeft, hasArr, isMovie, movieZones, movieDetail, collectionParts, castIdx, collectionIdx, recsIdx, onOpenDetail, show.id, dlCounts, dlSeasons, dlMode, dlEpisodes, dlPendingScope, selectDlScope, executeDlScope, sConn, onToast, epFetchError, retrySeasonFetch]);
 
 	useKeyTrap(handleKey, open && active);
 
@@ -993,9 +1205,11 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 						{actionBtns.map(function (btn, i) {
 							var cls = 'show-detail__action-btn';
 							if (btn.primary) cls += ' show-detail__action-btn--primary';
+							if (btn.disabled) cls += ' show-detail__action-btn--disabled';
 							if (zone === 'actions' && i === actionIdx) cls += ' show-detail__action-btn--focused';
-							return <button key={btn.action + i} class={cls} onClick={function () { setZone('actions'); setActionIdx(i); doAction(btn.action); }}>{btn.primary ? '▶ ' + btn.label : btn.label}</button>;
+							return <button key={btn.action + i} class={cls} onClick={function () { setZone('actions'); setActionIdx(i); doAction(btn.action, btn); }}>{btn.primary ? '▶ ' + btn.label : btn.label}</button>;
 						})}
+						{dlLoading && <span class="show-detail__dl-loading">Loading…</span>}
 					</div>
 				</div>
 			</div>
@@ -1023,7 +1237,7 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 									</div>
 								);
 							})}
-							{hasArr && (
+							{showSeasonActions && (
 								<div class={'show-detail__season-item show-detail__season-item--actions' + (zone === 'seasons' && seasonIdx === displaySeasons.length ? ' show-detail__season-item--focused' : '')} onClick={function () { setZone('seasons'); setSeasonIdx(displaySeasons.length); setOverlay('season-actions'); setOverlayIdx(0); }}>
 									<p class="show-detail__season-label">{'Actions ⋯'}</p>
 								</div>
@@ -1033,8 +1247,19 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 				)}
 
 				<div class="show-detail__episodes">
-					{loading && <div class="show-detail__loading">Loading…</div>}
-					{!loading && episodes.length === 0 && currentSeason && <div class="show-detail__loading">No episodes</div>}
+					{(loading || seasonLoading) && <div class="show-detail__loading">Loading…</div>}
+					{!loading && !seasonLoading && epFetchError && (
+						<div class="show-detail__loading">
+							<p>{"Couldn't load episodes"}</p>
+							<button class={'show-detail__action-btn' + (zone === 'episodes' ? ' show-detail__action-btn--focused' : '')} onClick={retrySeasonFetch} style="margin-top:12px">Retry</button>
+						</div>
+					)}
+					{!loading && !seasonLoading && !epFetchError && episodes.length === 0 && currentSeason && currentSeason.episode_count === 0 && (
+						<div class="show-detail__loading">{"Episodes haven't been announced yet"}</div>
+					)}
+					{!loading && !seasonLoading && !epFetchError && episodes.length === 0 && currentSeason && currentSeason.episode_count > 0 && (
+						<div class="show-detail__loading">No episode data available for this season</div>
+					)}
 					<div class="show-detail__episodes-inner" style={'transform:translate3d(0,' + (-scrollY) + 'px,0)'}>
 						{episodes.map(function (ep, i) {
 							var inView = i >= Math.max(0, epIdx - BUFFER_EPS - 1) && i <= epIdx + VISIBLE_EPS + BUFFER_EPS;
@@ -1166,7 +1391,6 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 						if (i === overlayIdx) cls += ' show-detail__action-btn--focused';
 						return <button key={item.action} class={cls + ' show-detail__action-btn--block'} onClick={function () {
 						if (item.action === 'cancel') setOverlay(null);
-						else if (item.action === 'dl-season') doSeasonDownload();
 						else if (item.action === 'remove') { setOverlay('remove-confirm'); setOverlayIdx(0); }
 					}}>{item.label}</button>;
 					})}
@@ -1179,6 +1403,86 @@ export function ShowDetail({show, open, active, onClose, onExitLeft, onPlayPlex,
 					<div class="show-detail__overlay-row">
 						<button class={'show-detail__action-btn' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay(null); setDlTarget(null); }}>Cancel</button>
 						<button class={'show-detail__action-btn show-detail__action-btn--primary' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')} onClick={function () { if (dlTarget) doEpisodeDownload(dlTarget); }}>Download</button>
+					</div>
+				</div>
+			)}
+
+			{overlay === 'dl-scope' && (
+				<div class="show-detail__overlay-center">
+					<p class="show-detail__overlay-title">{'Download ' + show.name}</p>
+					<button class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay('dl-seasons'); setOverlayIdx(0); setDlMode('episode'); }}>
+						{'Episode…'}
+					</button>
+					<button class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay('dl-seasons'); setOverlayIdx(0); setDlMode('season'); }}>
+						{'Season…'}
+					</button>
+					<button class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === 2 ? ' show-detail__action-btn--focused' : '')} onClick={function () { if (dlCounts) selectDlScope('lastSeason', dlCounts.lastSeason); }}>
+						{'Latest Season' + (dlCounts ? ' (' + dlCounts.lastSeason + ' episode' + (dlCounts.lastSeason !== 1 ? 's' : '') + ')' : '')}
+					</button>
+					<button class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === 3 ? ' show-detail__action-btn--focused' : '')} onClick={function () { if (dlCounts) selectDlScope('all', dlCounts.all); }}>
+						{'All Episodes' + (dlCounts ? ' (' + dlCounts.all + ' episode' + (dlCounts.all !== 1 ? 's' : '') + ')' : '')}
+					</button>
+					<button class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === 4 ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay(null); }}>
+						Cancel
+					</button>
+					{dlLoading && <div class="show-detail__overlay-loading">Loading…</div>}
+				</div>
+			)}
+
+			{overlay === 'dl-seasons' && (
+				<div class="show-detail__overlay-center">
+					<p class="show-detail__overlay-title">{dlMode === 'episode' ? 'Pick a season' : 'Download season'}</p>
+					{(dlSeasons || []).map(function (s, i) {
+						return (
+							<button key={s.number} class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === i ? ' show-detail__action-btn--focused' : '')} onClick={function () {
+								if (dlMode === 'season') {
+									selectDlScope({season: s.number}, s.count);
+								} else if (sConn) {
+									setDlLoading(true);
+									setDlSeasonNumber(s.number);
+									downloadSeriesListEpisodes(sConn, show.id, s.number).then(function (eps) {
+										setDlEpisodes(eps); setDlLoading(false); setOverlay('dl-episodes'); setOverlayIdx(0);
+									}).catch(function () {
+										setDlLoading(false); setOverlay('dl-scope'); setOverlayIdx(0); onToast('Failed to load episodes', 'error');
+									});
+								}
+							}}>
+								{'Season ' + s.number + ' (' + s.count + ' episode' + (s.count !== 1 ? 's' : '') + ')'}
+							</button>
+						);
+					})}
+					<button class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === (dlSeasons || []).length ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay('dl-scope'); setOverlayIdx(dlMode === 'episode' ? 0 : 1); }}>
+						Cancel
+					</button>
+					{dlLoading && <div class="show-detail__overlay-loading">Loading…</div>}
+				</div>
+			)}
+
+			{overlay === 'dl-episodes' && (
+				<div class="show-detail__overlay-center">
+					<p class="show-detail__overlay-title">{'Season ' + dlSeasonNumber}</p>
+					{(dlEpisodes || []).map(function (ep, i) {
+						var sStr = padTwo(ep.seasonNumber);
+						var eStr = padTwo(ep.episodeNumber);
+						return (
+							<button key={ep.id} class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === i ? ' show-detail__action-btn--focused' : '')} onClick={function () { executeDlScope({episode: ep.id}); }}>
+								{'S' + sStr + 'E' + eStr + ' — ' + (ep.title || 'Episode ' + ep.episodeNumber)}
+							</button>
+						);
+					})}
+					<button class={'show-detail__action-btn show-detail__action-btn--block' + (overlayIdx === (dlEpisodes || []).length ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay('dl-seasons'); setOverlayIdx(0); }}>
+						Cancel
+					</button>
+				</div>
+			)}
+
+			{overlay === 'dl-confirm-bulk' && (
+				<div class="show-detail__overlay-center">
+					<p class="show-detail__overlay-title">{'Download ' + show.name}</p>
+					<p class="show-detail__overlay-warn">{'This will search for ' + dlPendingCount + ' episode' + (dlPendingCount !== 1 ? 's' : '') + '. Continue?'}</p>
+					<div class="show-detail__overlay-row">
+						<button class={'show-detail__action-btn' + (overlayIdx === 0 ? ' show-detail__action-btn--focused' : '')} onClick={function () { setOverlay('dl-scope'); setOverlayIdx(4); setDlPendingScope(null); }}>Cancel</button>
+						<button class={'show-detail__action-btn show-detail__action-btn--primary' + (overlayIdx === 1 ? ' show-detail__action-btn--focused' : '')} onClick={function () { if (dlPendingScope) executeDlScope(dlPendingScope); }}>Continue</button>
 					</div>
 				</div>
 			)}
